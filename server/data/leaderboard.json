@@ -63,6 +63,15 @@
     "timestamp": "2026-03-21T10:08:40.357Z"
   },
   {
+    "id": "mn07ledejxan",
+    "name": "binary.kgec.tech",
+    "score": 50,
+    "roast": "binary.kgec.tech is a ghost in the machine, a silent, unsung, and utterly unprotected application, probably built yesterday and forgotten today.",
+    "topFix": "Implement security headers using Helmet.js and configure X-Frame-Options, Content-Security-Policy (CSP), and X-XSS-Protection.",
+    "url": "https://binary.kgec.tech/",
+    "timestamp": "2026-03-21T10:52:39.554Z"
+  },
+  {
     "id": "mn01vcqrqy4o",
     "name": "express",
     "score": 44,
@@ -72,6 +81,60 @@
     "timestamp": "2026-03-21T08:12:26.310Z"
   },
   {
+    "id": "mn0768xqk02x",
+    "name": "CodeJudge-binary",
+    "score": 27,
+    "roast": "CodeJudge-binary, a project designed to brutally judge others, fails 6 out of 11 of its own quality checks before even leaving the starting gate, proving that those who live in glass houses shouldn't throw stones — especially when their glass house has no security middleware, input validation, or tests.",
+    "topFix": "Implement a testing framework like Jest or Vitest and add unit, integration, and end-to-end tests for critical functionalities, as 'NO tests found'.",
+    "url": "https://github.com/Tarunjit45/CodeJudge-binary.git",
+    "timestamp": "2026-03-21T10:40:52.670Z"
+  },
+  {
+    "id": "mn07jg499ceg",
+    "name": "CodeJudge-binary",
+    "score": 27,
+    "roast": "CodeJudge-binary, a project designed to brutally judge others, fails 6 out of 11 of its *own* quality checks before even leaving the starting gate – that's some impressive self-sabotage.",
+    "topFix": "Implement input validation: Integrate 'Joi' or 'Zod' to validate all incoming user input (GitHub URLs, live app URLs) before processing.",
+    "url": "https://github.com/Tarunjit45/CodeJudge-binary.git",
+    "timestamp": "2026-03-21T10:51:08.507Z"
+  },
+  {
+    "id": "mn081m4ztqv2",
+    "name": "CodeJudge-binary",
+    "score": 27,
+    "roast": "CodeJudge-binary, a project designed to brutally judge others, is itself a laughably insecure and untested mess with zero stars and a future commit history that screams 'abandoned project' even before it starts.",
+    "topFix": "Implement automated testing using Jest or Vitest to validate all judging logic and API endpoints.",
+    "url": "https://github.com/Tarunjit45/CodeJudge-binary.git",
+    "timestamp": "2026-03-21T11:05:16.116Z"
+  },
+  {
+    "id": "mn0714xltogz",
+    "name": "CodeJudge-binary",
+    "score": 25,
+    "roast": "CodeJudge-binary claims to expose project weaknesses, yet it's a security and quality dumpster fire itself, completely oblivious to its own glaring flaws.",
+    "topFix": "Implement comprehensive testing using Jest or Mocha, and configure scripts for 'npm run test'.",
+    "url": "https://github.com/Tarunjit45/CodeJudge-binary.git",
+    "timestamp": "2026-03-21T10:36:54.202Z"
+  },
+  {
+    "id": "mn08jouz021z",
+    "name": "resume-rejection-analyzer",
+    "score": 19,
+    "roast": "The 'resume-rejection-analyzer' promises 'brutally honest' truth, but the only thing truly brutal here is the glaring lack of basic software engineering practices, making its own existence a prime candidate for immediate rejection.",
+    "topFix": "Implement unit and integration tests using Jest or Mocha/Chai, targeting the core AI analysis logic and API endpoints.",
+    "url": "https://github.com/Tarunjit45/resume-rejection-analyzer.git",
+    "timestamp": "2026-03-21T11:19:19.453Z"
+  },
+  {
+    "id": "mn08ns2z8nic",
+    "name": "resume-rejection-analyzer",
+    "score": 19,
+    "roast": "The 'resume-rejection-analyzer' promises to deliver 'cold, hard truth' about resumes, yet its own codebase is a monument to what happens when you skip every single quality control check in the book. You're building a house of cards on a swamp.",
+    "topFix": "Add Automated Testing: Implement a testing framework like `Jest` or `Mocha` with `Chai` for unit and integration tests. Start with testing critical AI analysis logic and API endpoints.",
+    "url": "https://github.com/Tarunjit45/resume-rejection-analyzer.git",
+    "timestamp": "2026-03-21T11:22:30.251Z"
+  },
+  {
     "id": "mn069g2znrgk",
     "name": "Conflux-AI",
     "score": 15,
@@ -79,5 +142,14 @@
     "topFix": "IMMEDIATE FIX: Remove the .env file from the repository, add it to .gitignore, and implement a secure environment variable management system like `dotenv-vault` or use platform-provided secrets management.",
     "url": "https://github.com/Tarunjit45/Conflux-AI.git",
     "timestamp": "2026-03-21T10:15:22.285Z"
+  },
+  {
+    "id": "mn098goszirw",
+    "name": "app.smolify.ai",
+    "score": 47,
+    "roast": "app.smolify.ai isn't just smol, it's so smol it forgot basic security, APIs, and a README, likely because it also forgot a developer.",
+    "topFix": "Implement security headers using Helmet.js middleware, configuring 'X-Frame-Options', 'Content-Security-Policy', 'Strict-Transport-Security', and 'X-XSS-Protection'.",
+    "url": "https://app.smolify.ai/",
+    "timestamp": "2026-03-21T11:38:35.262Z"
   }
 ]

@@ -1,65 +1,73 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import mongoose from 'mongoose';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, '..', 'data');
-const DATA_FILE = join(DATA_DIR, 'leaderboard.json');
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://tarunjitbiswas123:mypeojectforbinary@cluster0.jglf7om.mongodb.net/codejudge?retryWrites=true&w=majority&appName=Cluster0';
 
-let leaderboard = [];
+// Connect to MongoDB
+mongoose.connect(MONGO_URI)
+  .then(() => console.log('✅ Connected to MongoDB Backend Database'))
+  .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
-// Load existing data on startup
-function load() {
-  try {
-    if (existsSync(DATA_FILE)) {
-      leaderboard = JSON.parse(readFileSync(DATA_FILE, 'utf-8'));
-    }
-  } catch {
-    leaderboard = [];
-  }
-}
+// Define Schema
+const leaderboardSchema = new mongoose.Schema({
+  name: String,
+  score: Number,
+  roast: String,
+  topFix: String,
+  url: String,
+  timestamp: { type: Date, default: Date.now }
+});
 
-function save() {
-  try {
-    if (!existsSync(DATA_DIR)) {
-      mkdirSync(DATA_DIR, { recursive: true });
-    }
-    writeFileSync(DATA_FILE, JSON.stringify(leaderboard, null, 2));
-  } catch (err) {
-    console.error('Failed to save leaderboard:', err.message);
-  }
-}
-
-load();
+const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
 
 /**
  * Get the full leaderboard, sorted by score descending.
  */
-export function getLeaderboard() {
-  return leaderboard
-    .sort((a, b) => b.score - a.score)
-    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+export async function getLeaderboard() {
+  try {
+    const data = await Leaderboard.find().sort({ score: -1 }).lean();
+    return data.map((entry, index) => ({
+      ...entry,
+      id: entry._id.toString(),
+      rank: index + 1
+    }));
+  } catch (err) {
+    console.error('getLeaderboard Error:', err);
+    return [];
+  }
 }
 
 /**
  * Add a new entry to the leaderboard.
  */
-export function addToLeaderboard(entry) {
-  const newEntry = {
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    name: entry.name,
-    score: entry.score,
-    roast: entry.roast,
-    topFix: entry.topFix,
-    url: entry.url,
-    timestamp: new Date().toISOString(),
-  };
+export async function addToLeaderboard(entry) {
+  try {
+    const newEntry = new Leaderboard({
+      name: entry.name,
+      score: entry.score,
+      roast: entry.roast,
+      topFix: entry.topFix,
+      url: entry.url
+    });
 
-  leaderboard.push(newEntry);
-  save();
+    await newEntry.save();
 
-  const sorted = getLeaderboard();
-  const rank = sorted.findIndex(e => e.id === newEntry.id) + 1;
+    // Calculate rank
+    const sorted = await getLeaderboard();
+    const rank = sorted.findIndex(e => e.id === newEntry._id.toString()) + 1;
 
-  return { ...newEntry, rank, total: sorted.length };
+    return {
+      id: newEntry._id.toString(),
+      name: newEntry.name,
+      score: newEntry.score,
+      roast: newEntry.roast,
+      topFix: newEntry.topFix,
+      url: newEntry.url,
+      timestamp: newEntry.timestamp,
+      rank,
+      total: sorted.length
+    };
+  } catch (err) {
+    console.error('addToLeaderboard Error:', err);
+    throw err;
+  }
 }

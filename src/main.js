@@ -85,6 +85,7 @@ function showScreen(index) {
 // ===== Step 0: Submit =====
 function initLanding() {
   const input = $('#url-input');
+  const customConfigInput = $('#custom-config-input');
   const btn = $('#judge-btn');
   const error = $('#input-error');
 
@@ -93,6 +94,7 @@ function initLanding() {
 
   const handleSubmit = async () => {
     const url = input.value.trim();
+    const customConfig = customConfigInput?.value?.trim() || '';
     error.textContent = '';
 
     if (!url) {
@@ -113,20 +115,23 @@ function initLanding() {
       const res = await fetch('/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, customConfig }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.error || 'Failed to submit');
       }
 
-      state.projectInfo = await res.json();
+      state.projectInfo = data;
       goToStep(1); // → Analyze
     } catch (err) {
       error.textContent = err.message;
       btn.disabled = false;
       btn.querySelector('.btn-text').textContent = 'Judge My Project';
+    } finally {
+      // Logic for log injection later
     }
   };
 
@@ -178,6 +183,7 @@ function runProcessing() {
     `CI/CD: ${q.hasCI ? `✅ ${q.ciPlatform}` : '❌ No pipeline configured'}`,
     `Security: helmet=${q.hasHelmet ? '✅' : '❌'} | rate-limit=${q.hasRateLimit ? '✅' : '❌'} | validation=${q.hasValidation ? '✅' : '❌'}`,
     `Docker: ${q.hasDocker ? '✅' : '❌'} | TypeScript: ${q.hasTypescript ? '✅' : '❌'} | Linter: ${q.hasLinter ? '✅' : '❌'}`,
+    `Genesis Commit: ${state.projectInfo.firstCommitDate ? new Date(state.projectInfo.firstCommitDate).toDateString() : 'Unknown'}`,
     `Recent activity: ${state.projectInfo.recentCommits || 0} commits in last 30 days`,
     'Analysis complete. Running checks…',
   ];
@@ -334,6 +340,14 @@ async function runReview() {
 function renderReview() {
   // Roast
   $('#roast-text').textContent = state.review.roast;
+
+  // Custom Verdict / Manual Test output
+  if (state.review.customVerdict && state.review.customVerdict.trim() !== '') {
+    $('#custom-verdict-card').style.display = 'block';
+    $('#custom-verdict-text').textContent = state.review.customVerdict;
+  } else {
+    $('#custom-verdict-card').style.display = 'none';
+  }
 
   // Issues
   const issuesList = $('#issues-list');

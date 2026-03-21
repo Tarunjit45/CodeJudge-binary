@@ -67,6 +67,9 @@ PROJECT:
 - Dependencies: ${(projectInfo.dependencies || []).slice(0, 20).join(', ') || 'none'}
 - Dev Dependencies: ${(projectInfo.devDependencies || []).slice(0, 15).join(', ') || 'none'}
 - NPM Scripts: ${(projectInfo.scripts || []).join(', ') || 'none'}
+- First Commit: ${projectInfo.firstCommitDate || 'Unknown'}
+- Last Commit: ${projectInfo.lastCommitDate || 'Unknown'}
+- Total Commits: ${projectInfo.totalCommits || 'Unknown'}
 - Recent Commits (30d): ${projectInfo.recentCommits || 0}
 
 QUALITY SIGNALS (real code analysis):
@@ -96,14 +99,19 @@ Respond in this EXACT JSON format (no markdown, no code blocks, just raw JSON):
   "prevention": ["System-level improvement 1", "System-level improvement 2", "System-level improvement 3"],
   "impact": "2-3 sentences about why the specific failing checks matter in production",
   "topFixBefore": "A 3-4 line raw code snippet showing the vulnerable/missing state based on the TOP FIX",
-  "topFixAfter": "A 3-4 line raw code snippet showing the corrected/secure state based on the TOP FIX"
+  "topFixAfter": "A 3-4 line raw code snippet showing the corrected/secure state based on the TOP FIX",
+  "customVerdict": "If the Judge provided a CUSTOM INSTRUCTION below, write a dedicated 2-4 sentence response explicitly executing their manual test, answering their query, or evaluating their specific config instruction. If there was no custom instruction, leave this as an empty string."
 }
 
 RULES:
 - Reference real data: actual dependencies, actual file counts, actual missing tools
 - Don't say "the project" — use the project name "${projectInfo.name}"
 - Every issue must cite evidence from the analysis above
-- Every fix must name a specific package, tool, or action`;
+- Every fix must name a specific package, tool, or action${
+  projectInfo.customConfig 
+  ? `\n\n🚨 JUDGE'S CUSTOM INSTRUCTION AND CONFIG 🚨\nThe Master Judge explicitly demanded to manually test/analyze this: "${projectInfo.customConfig}". \nYOU ABSOLUTELY MUST write the result of this manual test inside the "customVerdict" JSON field!` 
+  : ''
+}`;
 }
 
 // ===== GEMINI API =====
@@ -239,6 +247,7 @@ function generateMockReview(projectInfo, attackResults) {
     prevention: prevention.slice(0, 3),
     impact,
     topFixBefore,
-    topFixAfter
+    topFixAfter,
+    customVerdict: projectInfo.customConfig ? `MOCK RESPONSE TO MANUAL TEST: You requested testing for "${projectInfo.customConfig}". Mock analysis shows this component is fragile and requires extensive refactoring to pass standard safety benchmarks.` : ''
   };
 }

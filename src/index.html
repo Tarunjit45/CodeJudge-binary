@@ -95,6 +95,19 @@
               <span class="btn-arrow">▶</span>
             </button>
           </div>
+          <div class="landing-input-group" style="margin-top: 12px; max-width: 560px; margin-left: auto; margin-right: auto;">
+            <div class="input-wrapper">
+              <span class="input-icon">⚙️</span>
+              <input
+                type="text"
+                id="custom-config-input"
+                class="landing-input"
+                placeholder="Custom Judge Instructions (Optional - e.g. 'Focus heavily on Auth')"
+                autocomplete="off"
+                style="opacity: 0.8; font-size: 14px;"
+              />
+            </div>
+          </div>
           <p id="input-error" class="input-error"></p>
           <div class="landing-stats">
             <span class="stat"><strong id="stat-judged">0</strong> projects judged</span>
@@ -163,6 +176,15 @@
             </div>
             <p class="roast-text" id="roast-text"></p>
           </div>
+
+          <div class="review-card custom-verdict-card" id="custom-verdict-card" style="display:none; border-left: 3px solid #ff00ff; background: rgba(255, 0, 255, 0.05); margin-bottom: 24px;">
+            <div class="review-card-header">
+              <span class="review-card-icon">🎯</span>
+              <span class="review-card-label" style="color: #ff00ff;">Manual Test Result</span>
+            </div>
+            <p class="roast-text" id="custom-verdict-text" style="color: #eee; font-weight: 500; font-size: 16px;"></p>
+          </div>
+
           <div class="review-card issues-card" id="issues-card">
             <div class="review-card-header">
               <span class="review-card-icon">🧠</span>

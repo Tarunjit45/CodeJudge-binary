@@ -13,33 +13,49 @@ export const apiRouter = Router();
  */
 apiRouter.post('/submit', async (req, res) => {
   try {
-    const { url } = req.body;
-    if (!url || typeof url !== 'string') {
+    const { url, customConfig } = req.body;
+    console.log(`[API] Submit request for URL: ${url}`);
+    
+    if (!url || typeof url !== 'string' || url.trim() === '') {
       return res.status(400).json({ error: 'URL is required' });
     }
 
     const isGitHub = /github\.com\/[^/]+\/[^/]+/.test(url);
     if (!isGitHub) {
-      // For non-GitHub URLs, create a basic project info
+      console.log(`[API] Not a GitHub URL, evaluating as manual/live: ${url}`);
+      let name = 'Manual Project';
+      try {
+        name = new URL(url).hostname;
+      } catch (err) {
+        // Not a URL? Treat the string itself as the project name/desc
+        name = url.substring(0, 30);
+      }
+      
       return res.json({
-        name: new URL(url).hostname,
+        name: name,
         fullName: url,
-        description: 'Live application URL — limited metadata available',
-        language: 'Unknown',
+        description: 'Manual Analysis Data',
+        language: 'System',
         languages: [],
         stars: 0,
         forks: 0,
         openIssues: 0,
         license: 'Unknown',
-        readme: '',
-        url,
+        readme: url, // Treat the input string as the content to judge
+        url: url,
+        customConfig: customConfig || 'Judge requested manual deep-dive analysis.'
       });
     }
 
     const projectInfo = await fetchGitHubRepo(url);
+    if (customConfig) {
+      projectInfo.customConfig = customConfig;
+    }
+    
     res.json(projectInfo);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error(`[API] Submit error:`, error);
+    res.status(400).json({ error: error.message || 'Analysis failed' });
   }
 });
 
@@ -103,17 +119,21 @@ apiRouter.post('/review', async (req, res) => {
 /**
  * GET /api/leaderboard
  */
-apiRouter.get('/leaderboard', (req, res) => {
-  res.json(getLeaderboard());
+apiRouter.get('/leaderboard', async (req, res) => {
+  try {
+    res.json(await getLeaderboard());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 /**
  * POST /api/leaderboard
  * Adds entry and returns the new entry with rank
  */
-apiRouter.post('/leaderboard', (req, res) => {
+apiRouter.post('/leaderboard', async (req, res) => {
   try {
-    const entry = addToLeaderboard(req.body);
+    const entry = await addToLeaderboard(req.body);
     res.json(entry);
   } catch (error) {
     res.status(500).json({ error: error.message });

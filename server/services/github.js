@@ -9,14 +9,30 @@ export async function fetchGitHubRepo(url) {
     throw new Error('Invalid GitHub URL. Expected format: https://github.com/owner/repo');
   }
 
-  const owner = match[1];
-  const repo = match[2].replace(/\.git$/, '');
-  const headers = { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'CodeJudge-AI' };
+  const owner = encodeURIComponent(match[1]);
+  const repo = encodeURIComponent(match[2].replace(/\.git$/, ''));
+  const headers = { 
+    'Accept': 'application/vnd.github.v3+json', 
+    'User-Agent': 'CodeJudge-AI-Scanner',
+  };
+
+  if (process.env.GITHUB_TOKEN) {
+    headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
+  }
 
   // --- 1. Fetch repo metadata ---
-  const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+  let repoRes;
+  try {
+    repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+  } catch (err) {
+    console.error(`[GitHub] Network error fetching repo ${owner}/${repo}:`, err);
+    throw new Error('Connection to GitHub API failed (Network error)');
+  }
+
   if (!repoRes.ok) {
-    throw new Error(`GitHub API error: ${repoRes.status} — Could not find repo "${owner}/${repo}"`);
+    const errorData = await repoRes.json().catch(() => ({ message: 'Unknown error' }));
+    console.error(`[GitHub] API Error ${repoRes.status}:`, errorData);
+    throw new Error(`GitHub API error: ${repoRes.status} — ${errorData.message}`);
   }
   const repoData = await repoRes.json();
 
@@ -118,23 +134,62 @@ export async function fetchGitHubRepo(url) {
     } catch { /* ignore */ }
   }
 
-  // --- 6. Fetch recent commits for activity signal ---
+  // --- 6. Fetch full commit history & recent commits ---
   let recentCommits = 0;
+  let totalCommits = 0;
+  let firstCommitDate = null;
+  let lastCommitDate = null;
+  
   try {
-    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    // A) Fetch total commits and first commit date
     const commitRes = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/commits?since=${since}&per_page=1`,
+      `https://api.github.com/repos/${owner}/${repo}/commits?per_page=1`,
       { headers }
     );
     if (commitRes.ok) {
-      // Check Link header for total count
-      const linkHeader = commitRes.headers.get('link');
-      if (linkHeader && linkHeader.includes('last')) {
-        const lastMatch = linkHeader.match(/page=(\d+)>; rel="last"/);
+      const commits = await commitRes.json();
+      if (commits.length > 0) {
+        lastCommitDate = commits[0].commit?.author?.date || commits[0].commit?.committer?.date;
+        
+        const linkHeader = commitRes.headers.get('link');
+        if (linkHeader && linkHeader.includes('last')) {
+          const lastMatch = linkHeader.match(/page=(\d+)>; rel="last"/);
+          if (lastMatch) {
+            totalCommits = parseInt(lastMatch[1], 10);
+            
+            // Fetch the last page to get the earliest commit
+            const firstCommitRes = await fetch(
+              `https://api.github.com/repos/${owner}/${repo}/commits?per_page=1&page=${totalCommits}`,
+              { headers }
+            );
+            if (firstCommitRes.ok) {
+              const firstCommitData = await firstCommitRes.json();
+              if (firstCommitData.length > 0) {
+                firstCommitDate = firstCommitData[0].commit?.author?.date || firstCommitData[0].commit?.committer?.date;
+              }
+            }
+          }
+        } else {
+          totalCommits = 1;
+          firstCommitDate = lastCommitDate;
+        }
+      }
+    }
+
+    // B) Fetch recent commits (last 30 days)
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const recentRes = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/commits?since=${since}&per_page=1`,
+      { headers }
+    );
+    if (recentRes.ok) {
+      const recentLinkHeader = recentRes.headers.get('link');
+      if (recentLinkHeader && recentLinkHeader.includes('last')) {
+        const lastMatch = recentLinkHeader.match(/page=(\d+)>; rel="last"/);
         recentCommits = lastMatch ? parseInt(lastMatch[1]) : 1;
       } else {
-        const commits = await commitRes.json();
-        recentCommits = commits.length;
+        const recentData = await recentRes.json();
+        recentCommits = recentData.length;
       }
     }
   } catch { /* ignore */ }
@@ -181,6 +236,9 @@ export async function fetchGitHubRepo(url) {
     dependencies,
     devDependencies,
     recentCommits,
+    totalCommits,
+    firstCommitDate,
+    lastCommitDate,
     scripts: packageJson?.scripts ? Object.keys(packageJson.scripts) : [],
   };
 }

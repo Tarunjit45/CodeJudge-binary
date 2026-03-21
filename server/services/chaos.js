@@ -131,6 +131,24 @@ const CODE_ANALYSIS_CHECKS = [
       return { passed: false, detail: 'No commits in the last 30 days. Project may be abandoned or unmaintained.' };
     },
   },
+  {
+    id: 'commit-history',
+    name: 'Commit History Timeline',
+    type: 'stability',
+    check: (info) => {
+      const first = info.firstCommitDate;
+      const total = info.totalCommits || 0;
+      if (!first) return { passed: false, detail: 'Failed to retrieve commit history timeline from GitHub.' };
+      
+      const firstDate = new Date(first);
+      const lastDate = info.lastCommitDate ? new Date(info.lastCommitDate) : new Date();
+      const diffMonths = (lastDate - firstDate) / (1000 * 60 * 60 * 24 * 30);
+      
+      if (diffMonths >= 12 && total < 20) return { passed: false, detail: `Project inactive relative to age. Spans from ${firstDate.toDateString()} to ${lastDate.toDateString()} with only ${total} total commits.` };
+      if (diffMonths < 1) return { passed: true, detail: `Recent project! ${total} commits in under a month. First commit: ${firstDate.toDateString()}` };
+      return { passed: true, detail: `Healthy timeline: ${total} commits. Genesis commit on exactly ${firstDate.toDateString()}.` };
+    },
+  },
 ];
 
 /**
