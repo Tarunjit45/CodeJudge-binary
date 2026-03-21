@@ -1194,3 +1194,100 @@ body {
   50% { content: '..'; }
   75% { content: '...'; }
 }
+
+/* ===== NEW FIX 5: Breakpoint Banner ===== */
+.breakpoint-banner {
+  background: rgba(255, 68, 68, 0.1);
+  border: 2px solid var(--error);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 0 30px rgba(255, 68, 68, 0.2);
+  animation: pulseError 2s infinite;
+  text-align: left;
+}
+@keyframes pulseError {
+  0% { box-shadow: 0 0 15px rgba(255, 68, 68, 0.2); }
+  50% { box-shadow: 0 0 30px rgba(255, 68, 68, 0.4); }
+  100% { box-shadow: 0 0 15px rgba(255, 68, 68, 0.2); }
+}
+.breakpoint-title {
+  color: var(--error);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.breakpoint-desc {
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1.5;
+}
+.breakpoint-endpoint {
+  background: var(--bg-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--error);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ===== NEW FIX 3: Before vs After Card ===== */
+.before-after-card {
+  border-left: 3px solid #888 !important;
+}
+.code-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 12px;
+}
+@media (min-width: 600px) {
+  .code-compare-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.code-block-container {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.before-state {
+  border-color: rgba(255, 68, 68, 0.3);
+}
+.after-state {
+  border-color: rgba(57, 231, 95, 0.3);
+}
+.code-header {
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.before-state .code-header {
+  color: var(--error);
+  background: rgba(255, 68, 68, 0.05);
+}
+.after-state .code-header {
+  color: var(--success);
+  background: rgba(57, 231, 95, 0.05);
+}
+.code-block-container pre {
+  padding: 12px;
+  margin: 0;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: transparent;
+}
+.after-state pre {
+  color: var(--text-primary);
+}

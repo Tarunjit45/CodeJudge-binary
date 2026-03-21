@@ -252,7 +252,7 @@ function renderAttackCard(result, container) {
       <div class="attack-endpoint">${result.endpoint}</div>
       <div class="attack-detail">${result.details}</div>
     </div>
-    <span class="attack-timing">${result.responseTime}ms</span>
+    <span class="attack-timing">${result.isSimulated ? `<span style="opacity:0.5; font-size:0.7em; margin-right:4px;">sim. latency</span>` : ''}${result.responseTime}ms</span>
   `;
   container.appendChild(card);
 }
@@ -272,10 +272,20 @@ function showFailures() {
   list.innerHTML = '';
 
   const failures = state.attackResults.filter(a => !a.passed);
+  const breakpointBanner = $('#breakpoint-banner');
 
   if (failures.length === 0) {
+    breakpointBanner.style.display = 'none';
     verdict.innerHTML = '🎉 <strong>Impressive!</strong> Your project survived all attacks. But the review might still be brutal…';
   } else {
+    // Breakpoint Highlight (FIX 5)
+    const firstFail = failures[0];
+    breakpointBanner.style.display = 'block';
+    breakpointBanner.innerHTML = `
+      <div class="breakpoint-title">🚨 BREAKPOINT DETECTED</div>
+      <div class="breakpoint-desc">Your app fails <strong>FIRST</strong> at <code>${firstFail.endpoint}</code> due to <strong>${firstFail.name}</strong>.</div>
+    `;
+
     failures.forEach((f, i) => {
       const item = document.createElement('div');
       item.className = 'failure-item';
@@ -362,6 +372,15 @@ function renderFix() {
 
   // Impact
   $('#impact-text').textContent = state.review.impact;
+
+  // Before vs After (FIX 3)
+  if (state.review.topFixBefore && state.review.topFixAfter) {
+    $('#before-after-card').style.display = 'block';
+    $('#top-fix-before').textContent = state.review.topFixBefore;
+    $('#top-fix-after').textContent = state.review.topFixAfter;
+  } else {
+    $('#before-after-card').style.display = 'none';
+  }
 
   // Add continue button
   addNextButton($('.fix-wrapper'), 'See My Score →', () => {

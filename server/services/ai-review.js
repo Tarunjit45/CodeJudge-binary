@@ -6,12 +6,23 @@ import OpenAI from 'openai';
  * Priority: GEMINI_API_KEY > OPENAI_API_KEY > Mock
  */
 export async function generateReview(projectInfo, attackResults) {
+  const openRouterKey = process.env.OPENROUTER_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
 
   const prompt = buildPrompt(projectInfo, attackResults);
 
-  // Try Gemini first (free tier available)
+  // Try OpenRouter first if provided
+  if (openRouterKey && openRouterKey.trim() !== '') {
+    console.log('🤖 Using OpenRouter for review');
+    try {
+      return await callOpenRouter(openRouterKey, prompt);
+    } catch (err) {
+      console.error('OpenRouter error, trying fallback:', err.message);
+    }
+  }
+
+  // Try Gemini second
   if (geminiKey && geminiKey.trim() !== '') {
     console.log('🤖 Using Google Gemini for review');
     try {
@@ -83,7 +94,9 @@ Respond in this EXACT JSON format (no markdown, no code blocks, just raw JSON):
   "issues": ["Specific issue 1 with evidence", "Specific issue 2 with evidence", "Specific issue 3", "Specific issue 4", "Specific issue 5"],
   "fixes": ["Specific fix 1 with exact package/tool names", "Specific fix 2", "Specific fix 3", "Specific fix 4", "Specific fix 5"],
   "prevention": ["System-level improvement 1", "System-level improvement 2", "System-level improvement 3"],
-  "impact": "2-3 sentences about why the specific failing checks matter in production"
+  "impact": "2-3 sentences about why the specific failing checks matter in production",
+  "topFixBefore": "A 3-4 line raw code snippet showing the vulnerable/missing state based on the TOP FIX",
+  "topFixAfter": "A 3-4 line raw code snippet showing the corrected/secure state based on the TOP FIX"
 }
 
 RULES:
@@ -130,6 +143,25 @@ async function callOpenAI(apiKey, prompt) {
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4',
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.8,
+    max_tokens: 1200,
+  });
+
+  const content = response.choices[0].message.content;
+  const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  return JSON.parse(cleaned);
+}
+
+// ===== OPENROUTER API =====
+async function callOpenRouter(apiKey, prompt) {
+  const openai = new OpenAI({ 
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: apiKey 
+  });
+
+  const response = await openai.chat.completions.create({
+    model: 'google/gemini-2.5-flash',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.8,
     max_tokens: 1200,
@@ -191,11 +223,22 @@ function generateMockReview(projectInfo, attackResults) {
     ? `With ${failedAttacks.length} failed checks, ${name} has systematic gaps across ${[...new Set(failedAttacks.map(a => a.type))].join(', ')}. In production, these compound — one missing rate limit + one missing input validation = a very bad day.`
     : `${name} has ${failedAttacks.length} weak points, primarily in ${[...new Set(failedAttacks.map(a => a.type))].join(' and ')}. These are fixable, but left unaddressed, even moderate traffic or a basic security scan would expose them.`;
 
+  // Mock Before/After for the first fix
+  let topFixBefore = `// Current State\napp.use('/', router);\n// No middleware configured`;
+  let topFixAfter = `// Secured State\nconst helmet = require('helmet');\n\napp.use(helmet());\napp.use('/', router);`;
+  
+  if (!q.hasTests) {
+    topFixBefore = `// No tests exist for critical features\nfunction processPayment(data) {\n  return db.save(data);\n}`;
+    topFixAfter = `// Added coverage\nimport { test, expect } from 'vitest';\n\ntest('processes payment correctly', () => {\n  expect(processPayment(mockData)).toBe(true);\n});`;
+  }
+
   return {
     roast,
     issues: issues.slice(0, 5),
     fixes: fixes.slice(0, 5),
     prevention: prevention.slice(0, 3),
     impact,
+    topFixBefore,
+    topFixAfter
   };
 }

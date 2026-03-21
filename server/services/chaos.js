@@ -140,8 +140,8 @@ function analyzeGitHubRepo(projectInfo) {
   return CODE_ANALYSIS_CHECKS.map((check) => {
     const result = check.check(projectInfo);
     const responseTime = result.passed
-      ? Math.floor(Math.random() * 150) + 30
-      : Math.floor(Math.random() * 300) + 100;
+      ? Math.floor(Math.random() * 80) + 15
+      : Math.floor(Math.random() * 200) + 40;
 
     return {
       id: check.id,
@@ -151,6 +151,7 @@ function analyzeGitHubRepo(projectInfo) {
       description: result.detail,
       passed: result.passed,
       responseTime,
+      isSimulated: true,
       statusCode: result.passed ? 200 : 0,
       severity: result.passed ? 'low' : (check.type === 'security' ? 'critical' : 'high'),
       details: result.detail,
@@ -211,7 +212,51 @@ async function probeLiveUrl(url) {
   // 8. Method not allowed check (send POST to root)
   results.push(await checkMethodNotAllowed(baseUrl));
 
+  // 9. Malformed JSON Check (Fix 1)
+  results.push(await checkMalformedJson(baseUrl));
+
   return results;
+}
+
+async function checkMalformedJson(baseUrl) {
+  try {
+    const start = Date.now();
+    const res = await fetch(`${baseUrl}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'CodeJudge-AI/1.0' },
+      body: '{ "username": "admin", "password": ', // malformed intentionally
+    });
+    const responseTime = Date.now() - start;
+    
+    // We expect a robust error like 400 Bad Request, not a 500 crash or hanging connection.
+    const passed = res.status === 400 || res.status === 404; // 404 is fine if endpoint doesn't exist
+    return {
+      id: 'malformed-json',
+      name: 'Malformed JSON Handling',
+      endpoint: `${baseUrl}/login`,
+      type: 'security',
+      description: 'Injecting broken JSON payload to crash parser',
+      passed,
+      responseTime,
+      statusCode: res.status,
+      severity: passed ? 'low' : 'high',
+      details: passed
+        ? `Server handled malformed JSON correctly (Status ${res.status})`
+        : `Server failed to handle malformed payload cleanly (Status ${res.status}) — possible unhandled exception`,
+    };
+  } catch (err) {
+    return {
+      id: 'malformed-json',
+      name: 'Malformed JSON Handling',
+      endpoint: `${baseUrl}/login`,
+      type: 'security',
+      passed: false,
+      responseTime: 0,
+      statusCode: 0,
+      severity: 'critical',
+      details: `Injection crashed connection abruptly: ${err.message}`,
+    };
+  }
 }
 
 async function probeEndpoint(url, meta) {

@@ -1,5 +1,32 @@
 [
   {
+    "id": "mn04rjfk86tx",
+    "name": "www.confluxai.in",
+    "score": 59,
+    "roast": "www.confluxai.in has zero tests and no CI pipeline — it's not a project, it's a prayer. 2 checks failed because nobody bothered to check anything.",
+    "topFix": "Add vitest or jest with at least one test per module — start with the critical paths",
+    "url": "https://www.confluxai.in/",
+    "timestamp": "2026-03-21T09:33:27.201Z"
+  },
+  {
+    "id": "mn05ydk9x947",
+    "name": "supabase.com",
+    "score": 55,
+    "roast": "supabase.com is less a project and more a digital ghost town, offering neither documentation nor basic security, much like a website built on good intentions and absolutely nothing else.",
+    "topFix": "Implement a comprehensive README.md using Markdown to describe supabase.com's purpose, installation, and usage.",
+    "url": "https://supabase.com/",
+    "timestamp": "2026-03-21T10:06:45.802Z"
+  },
+  {
+    "id": "mn04w415vxgk",
+    "name": "openclaw.ai",
+    "score": 53,
+    "roast": "openclaw.ai has zero tests and no CI pipeline — it's not a project, it's a prayer. 4 checks failed because nobody bothered to check anything.",
+    "topFix": "Add vitest or jest with at least one test per module — start with the critical paths",
+    "url": "https://openclaw.ai/",
+    "timestamp": "2026-03-21T09:37:00.521Z"
+  },
+  {
     "id": "mn01idbevw3f",
     "name": "white-theme-web",
     "score": 51,
@@ -18,6 +45,24 @@
     "timestamp": "2026-03-21T07:59:48.767Z"
   },
   {
+    "id": "mn05s1qc81nw",
+    "name": "binary.kgec.tech",
+    "score": 50,
+    "roast": "binary.kgec.tech is less a 'live application' and more a 'live demonstration of how not to build a web service,' given it's missing basic security, doesn't even know what an API is, and has 0 stars to show for its efforts.",
+    "topFix": "Implement Helmet.js in the server configuration to automatically add essential security headers like X-Frame-Options, X-Content-Type-Options, and XSS Protection.",
+    "url": "https://binary.kgec.tech/",
+    "timestamp": "2026-03-21T10:01:50.533Z"
+  },
+  {
+    "id": "mn060tydh29g",
+    "name": "binary.kgec.tech",
+    "score": 50,
+    "roast": "binary.kgec.tech is less a live application and more a public security vulnerability demo, with its lax CORS policy and total disregard for security headers.",
+    "topFix": "Implement a strict CORS policy using the `cors` package in Node.js, specifying allowed origins.",
+    "url": "https://binary.kgec.tech/",
+    "timestamp": "2026-03-21T10:08:40.357Z"
+  },
+  {
     "id": "mn01vcqrqy4o",
     "name": "express",
     "score": 44,
@@ -25,5 +70,14 @@
     "topFix": "Add express-rate-limit: const limiter = rateLimit({ windowMs: 15*60*1000, max: 100 }); app.use(limiter)",
     "url": "https://github.com/expressjs/express",
     "timestamp": "2026-03-21T08:12:26.310Z"
+  },
+  {
+    "id": "mn069g2znrgk",
+    "name": "Conflux-AI",
+    "score": 15,
+    "roast": "Conflux-AI, for a project daring to call itself an 'AI Studio app,' your critical security and reliability infrastructure is running on hopes and dreams, not code.",
+    "topFix": "IMMEDIATE FIX: Remove the .env file from the repository, add it to .gitignore, and implement a secure environment variable management system like `dotenv-vault` or use platform-provided secrets management.",
+    "url": "https://github.com/Tarunjit45/Conflux-AI.git",
+    "timestamp": "2026-03-21T10:15:22.285Z"
   }
 ]
