@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeJudge AI — Brutal Hackathon Judge</title>
+  <meta name="description" content="Submit your project and let AI attack, judge, and score it. Brutal but useful feedback for developers." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Theme toggle -->
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+      <span class="theme-icon">🌙</span>
+    </button>
+
+    <!-- Pipeline Progress Bar -->
+    <nav id="pipeline-bar" class="pipeline-bar">
+      <div class="pipeline-track">
+        <div class="pipeline-step active" data-step="0">
+          <div class="step-node"><span class="step-icon">📤</span></div>
+          <span class="step-label">Submit</span>
+        </div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-step" data-step="1">
+          <div class="step-node"><span class="step-icon">🔍</span></div>
+          <span class="step-label">Analyze</span>
+        </div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-step" data-step="2">
+          <div class="step-node"><span class="step-icon">⚔️</span></div>
+          <span class="step-label">Attack</span>
+        </div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-step" data-step="3">
+          <div class="step-node"><span class="step-icon">💥</span></div>
+          <span class="step-label">Fail</span>
+        </div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-step" data-step="4">
+          <div class="step-node"><span class="step-icon">🔥</span></div>
+          <span class="step-label">Review</span>
+        </div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-step" data-step="5">
+          <div class="step-node"><span class="step-icon">🛠</span></div>
+          <span class="step-label">Fix</span>
+        </div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-step" data-step="6">
+          <div class="step-node"><span class="step-icon">📊</span></div>
+          <span class="step-label">Score</span>
+        </div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-step" data-step="7">
+          <div class="step-node"><span class="step-icon">🏆</span></div>
+          <span class="step-label">Rank</span>
+        </div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-step" data-step="8">
+          <div class="step-node"><span class="step-icon">🔗</span></div>
+          <span class="step-label">Share</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Screen Container: Only one visible at a time -->
+    <main id="screen-container" class="screen-container">
+
+      <!-- SCREEN 0: Landing -->
+      <section id="screen-landing" class="screen active">
+        <div class="landing-wrapper">
+          <div class="landing-glow"></div>
+          <h1 class="landing-title">
+            <span class="title-code">&lt;</span>CodeJudge<span class="title-accent"> AI</span><span class="title-code">/&gt;</span>
+          </h1>
+          <p class="landing-tagline">Let's see if your project survives reality.</p>
+          <div class="landing-input-group">
+            <div class="input-wrapper">
+              <span class="input-icon">🔗</span>
+              <input
+                type="url"
+                id="url-input"
+                class="landing-input"
+                placeholder="Paste a GitHub URL (e.g. https://github.com/user/repo)"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+            <button id="judge-btn" class="judge-btn">
+              <span class="btn-text">Judge My Project</span>
+              <span class="btn-arrow">▶</span>
+            </button>
+          </div>
+          <p id="input-error" class="input-error"></p>
+          <div class="landing-stats">
+            <span class="stat"><strong id="stat-judged">0</strong> projects judged</span>
+            <span class="stat-dot">•</span>
+            <span class="stat"><strong>10</strong> attack vectors</span>
+            <span class="stat-dot">•</span>
+            <span class="stat"><strong>0</strong> mercy given</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 1: Processing / Analyzing -->
+      <section id="screen-processing" class="screen">
+        <div class="processing-wrapper">
+          <div class="processing-spinner"></div>
+          <h2 class="processing-title">Analyzing Project…</h2>
+          <p class="processing-subtitle" id="processing-project-name"></p>
+          <div class="log-container" id="log-container">
+            <!-- log lines injected here -->
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 2: Attack -->
+      <section id="screen-attack" class="screen">
+        <div class="attack-wrapper">
+          <h2 class="section-title">⚔️ Launching Attacks</h2>
+          <p class="section-subtitle">Testing your project against real-world failure scenarios</p>
+          <div class="attack-grid" id="attack-grid">
+            <!-- attack cards injected here -->
+          </div>
+          <div class="attack-summary" id="attack-summary" style="display:none;">
+            <div class="summary-stat">
+              <span class="summary-label">Passed</span>
+              <span class="summary-value passed" id="attacks-passed">0</span>
+            </div>
+            <div class="summary-stat">
+              <span class="summary-label">Failed</span>
+              <span class="summary-value failed" id="attacks-failed">0</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 3: Failure Detection -->
+      <section id="screen-failures" class="screen">
+        <div class="failures-wrapper">
+          <h2 class="section-title">💥 Failure Report</h2>
+          <p class="section-subtitle">Here's where your project broke</p>
+          <div class="failures-list" id="failures-list">
+            <!-- failure items injected here -->
+          </div>
+          <div class="failures-verdict" id="failures-verdict"></div>
+        </div>
+      </section>
+
+      <!-- SCREEN 4: Brutal Review (Roast + Reality) -->
+      <section id="screen-review" class="screen">
+        <div class="review-wrapper">
+          <h2 class="section-title">🔥 Brutal Review</h2>
+          <div class="review-card roast-card" id="roast-card">
+            <div class="review-card-header">
+              <span class="review-card-icon">🔥</span>
+              <span class="review-card-label">The Roast</span>
+            </div>
+            <p class="roast-text" id="roast-text"></p>
+          </div>
+          <div class="review-card issues-card" id="issues-card">
+            <div class="review-card-header">
+              <span class="review-card-icon">🧠</span>
+              <span class="review-card-label">Reality Check</span>
+            </div>
+            <ul class="issues-list" id="issues-list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 5: Fix & Prevent -->
+      <section id="screen-fix" class="screen">
+        <div class="fix-wrapper">
+          <h2 class="section-title">🛠 Fix & Prevent</h2>
+          <div class="review-card fix-card">
+            <div class="review-card-header">
+              <span class="review-card-icon">🛠</span>
+              <span class="review-card-label">How to Fix</span>
+            </div>
+            <ul class="fix-list" id="fix-list"></ul>
+          </div>
+          <div class="review-card prevent-card">
+            <div class="review-card-header">
+              <span class="review-card-icon">🧱</span>
+              <span class="review-card-label">How to Prevent</span>
+            </div>
+            <ul class="prevent-list" id="prevent-list"></ul>
+          </div>
+          <div class="review-card impact-card">
+            <div class="review-card-header">
+              <span class="review-card-icon">⚡</span>
+              <span class="review-card-label">Impact</span>
+            </div>
+            <p class="impact-text" id="impact-text"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 6: Score -->
+      <section id="screen-score" class="screen">
+        <div class="score-wrapper">
+          <h2 class="section-title">📊 Resilience Score</h2>
+          <div class="score-circle-container">
+            <div class="score-circle" id="score-circle">
+              <svg viewBox="0 0 200 200" class="score-svg">
+                <circle cx="100" cy="100" r="88" class="score-bg-ring" />
+                <circle cx="100" cy="100" r="88" class="score-fg-ring" id="score-ring" />
+              </svg>
+              <div class="score-value" id="score-value">0</div>
+              <div class="score-label">/ 100</div>
+            </div>
+          </div>
+          <div class="score-breakdown">
+            <div class="breakdown-item">
+              <div class="breakdown-header">
+                <span class="breakdown-label">Stability</span>
+                <span class="breakdown-value" id="stability-value">0%</span>
+              </div>
+              <div class="breakdown-bar"><div class="breakdown-fill" id="stability-bar"></div></div>
+            </div>
+            <div class="breakdown-item">
+              <div class="breakdown-header">
+                <span class="breakdown-label">Error Handling</span>
+                <span class="breakdown-value" id="errorhandling-value">0%</span>
+              </div>
+              <div class="breakdown-bar"><div class="breakdown-fill" id="errorhandling-bar"></div></div>
+            </div>
+            <div class="breakdown-item">
+              <div class="breakdown-header">
+                <span class="breakdown-label">Structure</span>
+                <span class="breakdown-value" id="structure-value">0%</span>
+              </div>
+              <div class="breakdown-bar"><div class="breakdown-fill" id="structure-bar"></div></div>
+            </div>
+          </div>
+          <div class="score-stats" id="score-stats"></div>
+        </div>
+      </section>
+
+      <!-- SCREEN 7: Leaderboard -->
+      <section id="screen-leaderboard" class="screen">
+        <div class="leaderboard-wrapper">
+          <h2 class="section-title">🏆 Leaderboard</h2>
+          <p class="section-subtitle">How do you compare?</p>
+          <div class="leaderboard-table" id="leaderboard-table">
+            <!-- rows injected here -->
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 8: Share -->
+      <section id="screen-share" class="screen">
+        <div class="share-wrapper">
+          <h2 class="section-title">🔗 Share Your Result</h2>
+          <div class="share-card-preview" id="share-card-preview">
+            <div class="share-card" id="share-card">
+              <div class="share-card-header">
+                <span class="share-logo">&lt;CodeJudge AI/&gt;</span>
+                <span class="share-badge" id="share-badge"></span>
+              </div>
+              <div class="share-card-body">
+                <div class="share-score-display">
+                  <span class="share-score-num" id="share-score-num">0</span>
+                  <span class="share-score-label">/ 100</span>
+                </div>
+                <p class="share-roast" id="share-roast"></p>
+                <div class="share-top-fix">
+                  <span class="share-fix-label">Top Fix:</span>
+                  <span class="share-fix-text" id="share-fix-text"></span>
+                </div>
+              </div>
+              <div class="share-card-footer">
+                <span class="share-rank" id="share-rank"></span>
+                <span class="share-url">codejudge.ai</span>
+              </div>
+            </div>
+          </div>
+          <div class="share-actions">
+            <button id="share-download-btn" class="share-btn primary">
+              📥 Download Card
+            </button>
+            <button id="share-copy-btn" class="share-btn secondary">
+              📋 Copy to Clipboard
+            </button>
+            <button id="restart-btn" class="share-btn tertiary">
+              🔄 Judge Another Project
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

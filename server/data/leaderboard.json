@@ -1,0 +1,29 @@
+[
+  {
+    "id": "mn01idbevw3f",
+    "name": "white-theme-web",
+    "score": 51,
+    "roast": "white-theme-web crashes harder than my faith in humanity — 6 out of 10 attacks broke it. Ship it to prod, I dare you.",
+    "topFix": "Add try-catch blocks with specific error types around all API handlers, especially /api/submit and /api/process",
+    "url": "https://github.com/biswajit-sarkar-007/white-theme-web.git",
+    "timestamp": "2026-03-21T08:02:20.522Z"
+  },
+  {
+    "id": "mn01f47zfs60",
+    "name": "express",
+    "score": 50,
+    "roast": "express didn't just fail gracefully — it failed spectacularly, dramatically, and repeatedly. 7 attacks, 7 ways to ruin someone's day.",
+    "topFix": "Add try-catch blocks with specific error types around all API handlers, especially /api/data and /api/admin",
+    "url": "https://github.com/expressjs/express",
+    "timestamp": "2026-03-21T07:59:48.767Z"
+  },
+  {
+    "id": "mn01vcqrqy4o",
+    "name": "express",
+    "score": 44,
+    "roast": "express is a security audit's worst nightmare — 3 security checks failed. Anyone with a browser and 10 minutes could ruin your day.",
+    "topFix": "Add express-rate-limit: const limiter = rateLimit({ windowMs: 15*60*1000, max: 100 }); app.use(limiter)",
+    "url": "https://github.com/expressjs/express",
+    "timestamp": "2026-03-21T08:12:26.310Z"
+  }
+]
