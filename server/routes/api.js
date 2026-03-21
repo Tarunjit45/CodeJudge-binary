@@ -128,6 +128,20 @@ apiRouter.get('/leaderboard', async (req, res) => {
 });
 
 /**
+ * GET /api/project/:id
+ * Fetches full details for a project dashboard
+ */
+apiRouter.get('/project/:id', async (req, res) => {
+  try {
+    const project = await getProjectById(req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    res.json(project);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * POST /api/leaderboard
  * Adds entry and returns the new entry with rank
  */

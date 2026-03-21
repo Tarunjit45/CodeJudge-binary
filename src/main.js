@@ -1,28 +1,41 @@
 /**
  * CodeJudge AI — Main Application
- * Pipeline state machine controlling the 9-step judging flow.
+ * Dual-mode (Builder / Judge) pipeline with gamification.
+ * Guided storytelling UI: user sees only the current step + next action.
  */
+
+// ===== Resilience Level System =====
+const LEVELS = [
+  { min: 0,  max: 39, name: 'Fragile',          emoji: '💀', color: '#ff4444' },
+  { min: 40, max: 59, name: 'Unstable',         emoji: '⚠️', color: '#ffaa00' },
+  { min: 60, max: 74, name: 'Surviving',         emoji: '🧠', color: '#3b82f6' },
+  { min: 75, max: 89, name: 'Resilient',         emoji: '⚡', color: '#a855f7' },
+  { min: 90, max: 100, name: 'Production Ready', emoji: '🚀', color: '#39e75f' },
+];
+
+function getLevel(score) {
+  return LEVELS.find(l => score >= l.min && score <= l.max) || LEVELS[0];
+}
 
 // ===== State =====
 const state = {
   currentStep: 0,
+  mode: 'participant', // 'participant' | 'judge'
   projectInfo: null,
   attackResults: [],
   review: null,
   score: null,
   leaderboardEntry: null,
   leaderboard: [],
+  streak: parseInt(localStorage.getItem('codejudge-streak') || '0'),
+  lastScore: parseInt(localStorage.getItem('codejudge-last-score') || '0'),
+  hardModeSurvived: false,
 };
-
-const STEPS = [
-  'submit', 'analyze', 'attack', 'fail',
-  'review', 'fix', 'score', 'rank', 'share',
-];
 
 const SCREEN_IDS = [
   'screen-landing', 'screen-processing', 'screen-attack',
-  'screen-failures', 'screen-review', 'screen-fix',
-  'screen-score', 'screen-leaderboard', 'screen-share',
+  'screen-failures', 'screen-fix',
+  'screen-score', 'screen-leaderboard',
 ];
 
 // ===== DOM Refs =====
@@ -46,6 +59,40 @@ function initTheme() {
   });
 }
 
+// ===== Mode Toggle =====
+function initModeToggle() {
+  const btns = $$('.mode-btn');
+  btns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      btns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.mode = btn.dataset.mode;
+      updateModeUI();
+    });
+  });
+  updateModeUI();
+}
+
+function updateModeUI() {
+  const tagline = $('#landing-tagline');
+  const description = $('#landing-description');
+  const btnText = $('#judge-btn-text');
+
+  if (state.mode === 'participant') {
+    tagline.textContent = "Let's see if your project survives reality.";
+    description.textContent = 'Submit → See failures → Get fixes → Re-test → Improve score';
+    btnText.textContent = 'Judge My Project';
+    document.body.classList.remove('judge-mode');
+    document.body.classList.add('builder-mode');
+  } else {
+    tagline.textContent = 'Evaluate projects quickly and fairly.';
+    description.textContent = 'Paste project → See summary → See weaknesses → Get structured verdict → Compare scores';
+    btnText.textContent = 'Evaluate Project';
+    document.body.classList.remove('builder-mode');
+    document.body.classList.add('judge-mode');
+  }
+}
+
 // ===== Pipeline Progress Bar =====
 function updatePipelineBar(step) {
   $$('.pipeline-step').forEach((el, i) => {
@@ -54,11 +101,9 @@ function updatePipelineBar(step) {
     if (i === step) el.classList.add('active');
   });
 
-  // Update connectors
   $$('.pipeline-connector').forEach((el, i) => {
     if (i < step) {
       el.style.background = 'var(--accent-dim)';
-      el.style.setProperty('--connector-done', '1');
     } else {
       el.style.background = 'var(--connector-color)';
     }
@@ -72,7 +117,7 @@ function showScreen(index) {
     if (i === index) {
       s.classList.add('active');
       s.style.animation = 'none';
-      s.offsetHeight; // trigger reflow
+      s.offsetHeight;
       s.style.animation = 'screenIn 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
     } else {
       s.classList.remove('active');
@@ -80,6 +125,16 @@ function showScreen(index) {
   });
   state.currentStep = index;
   updatePipelineBar(index);
+
+  // Hide mode toggle after landing
+  const modeContainer = $('#mode-toggle-container');
+  if (index > 0) {
+    modeContainer.style.opacity = '0';
+    modeContainer.style.pointerEvents = 'none';
+  } else {
+    modeContainer.style.opacity = '1';
+    modeContainer.style.pointerEvents = 'auto';
+  }
 }
 
 // ===== Step 0: Submit =====
@@ -89,7 +144,6 @@ function initLanding() {
   const btn = $('#judge-btn');
   const error = $('#input-error');
 
-  // Update stat count
   fetchLeaderboardCount();
 
   const handleSubmit = async () => {
@@ -102,7 +156,6 @@ function initLanding() {
       return;
     }
 
-    // Basic URL validation
     if (!url.match(/^https?:\/\/.+/)) {
       error.textContent = 'Please enter a valid URL starting with http:// or https://';
       return;
@@ -129,9 +182,7 @@ function initLanding() {
     } catch (err) {
       error.textContent = err.message;
       btn.disabled = false;
-      btn.querySelector('.btn-text').textContent = 'Judge My Project';
-    } finally {
-      // Logic for log injection later
+      btn.querySelector('.btn-text').textContent = state.mode === 'judge' ? 'Evaluate Project' : 'Judge My Project';
     }
   };
 
@@ -172,7 +223,7 @@ function runProcessing() {
     'Testing HTTP method restrictions…',
     'Checking 404 error handler…',
     'Compiling real probe results…',
-    'All probes complete. Showing results…',
+    'All probes complete. Launching attacks…',
   ] : [
     `Connecting to GitHub API…`,
     `Found: ${state.projectInfo.fullName || state.projectInfo.name}`,
@@ -185,7 +236,7 @@ function runProcessing() {
     `Docker: ${q.hasDocker ? '✅' : '❌'} | TypeScript: ${q.hasTypescript ? '✅' : '❌'} | Linter: ${q.hasLinter ? '✅' : '❌'}`,
     `Genesis Commit: ${state.projectInfo.firstCommitDate ? new Date(state.projectInfo.firstCommitDate).toDateString() : 'Unknown'}`,
     `Recent activity: ${state.projectInfo.recentCommits || 0} commits in last 30 days`,
-    'Analysis complete. Running checks…',
+    'Analysis complete. Launching attacks…',
   ];
 
   let i = 0;
@@ -212,7 +263,6 @@ function runAttack() {
   grid.innerHTML = '';
   summary.style.display = 'none';
 
-  // SSE stream from backend
   fetch('/api/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -239,7 +289,7 @@ function runAttack() {
         } else if (data.type === 'complete') {
           state.attackResults = data.results;
           showAttackSummary(summary);
-          setTimeout(() => goToStep(3), 2000); // → Failures
+          setTimeout(() => goToStep(3), 2000); // → Breakpoint
         }
       }
     }
@@ -271,7 +321,7 @@ function showAttackSummary(summary) {
   summary.style.display = 'flex';
 }
 
-// ===== Step 3: Failure Detection =====
+// ===== Step 3: Breakpoint + Failures + Review (consolidated) =====
 function showFailures() {
   const list = $('#failures-list');
   const verdict = $('#failures-verdict');
@@ -279,18 +329,36 @@ function showFailures() {
 
   const failures = state.attackResults.filter(a => !a.passed);
   const breakpointBanner = $('#breakpoint-banner');
+  const realityShock = $('#reality-shock');
+  const subtitle = $('#failures-subtitle');
+
+  if (state.mode === 'judge') {
+    subtitle.textContent = "Here's where this project breaks";
+  } else {
+    subtitle.textContent = "Here's where your project broke";
+  }
 
   if (failures.length === 0) {
     breakpointBanner.style.display = 'none';
-    verdict.innerHTML = '🎉 <strong>Impressive!</strong> Your project survived all attacks. But the review might still be brutal…';
+    realityShock.style.display = 'block';
+    $('#shock-answer').textContent = '✅ LIKELY YES';
+    $('#shock-answer').style.color = 'var(--success)';
+    $('#shock-subtext').textContent = '(strong foundation detected)';
+    verdict.innerHTML = '🎉 <strong>Impressive!</strong> ' + (state.mode === 'judge' ? 'This project survived all attacks.' : 'Your project survived all attacks. But the review might still be brutal…');
+    state.hardModeSurvived = true;
   } else {
-    // Breakpoint Highlight (FIX 5)
     const firstFail = failures[0];
     breakpointBanner.style.display = 'block';
     breakpointBanner.innerHTML = `
       <div class="breakpoint-title">🚨 BREAKPOINT DETECTED</div>
-      <div class="breakpoint-desc">Your app fails <strong>FIRST</strong> at <code>${firstFail.endpoint}</code> due to <strong>${firstFail.name}</strong>.</div>
+      <div class="breakpoint-desc">${state.mode === 'judge' ? 'This app' : 'Your app'} fails <strong>FIRST</strong> at <code>${firstFail.endpoint}</code> due to <strong>${firstFail.name}</strong>.</div>
     `;
+
+    // Reality Shock
+    realityShock.style.display = 'block';
+    $('#shock-answer').textContent = '❌ NO';
+    $('#shock-answer').style.color = 'var(--error)';
+    $('#shock-subtext').textContent = '(current state)';
 
     failures.forEach((f, i) => {
       const item = document.createElement('div');
@@ -306,17 +374,16 @@ function showFailures() {
       `;
       list.appendChild(item);
     });
-    verdict.innerHTML = `💀 <strong>${failures.length} vulnerabilities</strong> detected. Your project has ${failures.length === 1 ? 'a weak spot' : 'serious weak spots'}.`;
+    verdict.innerHTML = `💀 <strong>${failures.length} vulnerabilities</strong> detected. ${state.mode === 'judge' ? 'This project has' : 'Your project has'} ${failures.length === 1 ? 'a weak spot' : 'serious weak spots'}.`;
+    state.hardModeSurvived = false;
   }
 
-  // Auto-advance after showing failures
-  setTimeout(() => runReview(), 3000);
+  // Now fetch the review
+  runReview();
 }
 
-// ===== Step 4 & 5: Review & Fix =====
+// ===== Review (runs in background while failures are shown) =====
 async function runReview() {
-  goToStep(4); // → Review
-
   try {
     const res = await fetch('/api/review', {
       method: 'POST',
@@ -331,17 +398,17 @@ async function runReview() {
     state.review = data.review;
     state.score = data.score;
 
-    renderReview();
+    renderReviewInline();
   } catch (err) {
     console.error('Review failed:', err);
   }
 }
 
-function renderReview() {
+function renderReviewInline() {
   // Roast
   $('#roast-text').textContent = state.review.roast;
 
-  // Custom Verdict / Manual Test output
+  // Custom Verdict
   if (state.review.customVerdict && state.review.customVerdict.trim() !== '') {
     $('#custom-verdict-card').style.display = 'block';
     $('#custom-verdict-text').textContent = state.review.customVerdict;
@@ -358,15 +425,33 @@ function renderReview() {
     issuesList.appendChild(li);
   });
 
-  // Add continue button
-  addNextButton($('.review-wrapper'), 'See Fix & Prevention →', () => {
-    goToStep(5); // → Fix
+  // Judge mode: structured verdict
+  if (state.mode === 'judge') {
+    const judgeCard = $('#judge-verdict-card');
+    judgeCard.style.display = 'block';
+    const body = $('#judge-verdict-body');
+    const totalPassed = state.attackResults.filter(a => a.passed).length;
+    const totalFailed = state.attackResults.length - totalPassed;
+    const level = getLevel(state.score.total);
+
+    body.innerHTML = `
+      <div class="judge-row"><span class="judge-label">Project</span><span class="judge-val">${state.projectInfo.fullName || state.projectInfo.name}</span></div>
+      <div class="judge-row"><span class="judge-label">Score</span><span class="judge-val" style="color:${level.color}">${state.score.total}/100</span></div>
+      <div class="judge-row"><span class="judge-label">Level</span><span class="judge-val">${level.emoji} ${level.name}</span></div>
+      <div class="judge-row"><span class="judge-label">Tests Passed</span><span class="judge-val">${totalPassed}/${state.attackResults.length}</span></div>
+      <div class="judge-row"><span class="judge-label">Critical Issues</span><span class="judge-val" style="color:var(--error)">${state.score.stats.criticalFails}</span></div>
+      <div class="judge-row"><span class="judge-label">Verdict</span><span class="judge-val">${state.score.total >= 75 ? '✅ Recommend' : state.score.total >= 50 ? '⚠️ Needs Work' : '❌ Not Ready'}</span></div>
+    `;
+  }
+
+  // Continue button
+  addNextButton($('.failures-wrapper'), state.mode === 'judge' ? 'See Detailed Fixes →' : 'Show Me How To Fix This →', () => {
+    goToStep(4); // → Fix
     renderFix();
   });
 }
 
 function renderFix() {
-  // Fixes
   const fixList = $('#fix-list');
   fixList.innerHTML = '';
   state.review.fixes.forEach(fix => {
@@ -375,7 +460,6 @@ function renderFix() {
     fixList.appendChild(li);
   });
 
-  // Prevention
   const preventList = $('#prevent-list');
   preventList.innerHTML = '';
   state.review.prevention.forEach(prev => {
@@ -384,10 +468,9 @@ function renderFix() {
     preventList.appendChild(li);
   });
 
-  // Impact
   $('#impact-text').textContent = state.review.impact;
 
-  // Before vs After (FIX 3)
+  // Before vs After
   if (state.review.topFixBefore && state.review.topFixAfter) {
     $('#before-after-card').style.display = 'block';
     $('#top-fix-before').textContent = state.review.topFixBefore;
@@ -396,18 +479,31 @@ function renderFix() {
     $('#before-after-card').style.display = 'none';
   }
 
-  // Add continue button
   addNextButton($('.fix-wrapper'), 'See My Score →', () => {
-    goToStep(6); // → Score
+    goToStep(5); // → Score
     renderScore();
   });
 }
 
-// ===== Step 6: Score =====
+// ===== Step 5: Score + Level + Badges =====
 function renderScore() {
   const score = state.score;
   const scoreValue = $('#score-value');
   const scoreRing = $('#score-ring');
+  const level = getLevel(score.total);
+
+  // Level display
+  const levelBadge = $('#level-badge');
+  const levelEmoji = $('#level-emoji');
+  const levelName = $('#level-name');
+  levelEmoji.textContent = level.emoji;
+  levelName.textContent = level.name;
+  levelBadge.style.borderColor = level.color;
+  levelBadge.style.boxShadow = `0 0 30px ${level.color}44, 0 0 60px ${level.color}22`;
+
+  // Score ring color
+  scoreRing.style.stroke = level.color;
+  scoreRing.style.filter = `drop-shadow(0 0 12px ${level.color})`;
 
   // Animated count-up
   let current = 0;
@@ -418,11 +514,11 @@ function renderScore() {
   function animate(now) {
     const elapsed = now - startTime;
     const progress = Math.min(elapsed / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    const eased = 1 - Math.pow(1 - progress, 3);
     current = Math.round(eased * target);
     scoreValue.textContent = current;
+    scoreValue.style.color = level.color;
 
-    // Update ring
     const circumference = 553;
     const offset = circumference - (circumference * (current / 100));
     scoreRing.style.strokeDashoffset = offset;
@@ -433,7 +529,7 @@ function renderScore() {
   }
   requestAnimationFrame(animate);
 
-  // Breakdown bars (delayed for effect)
+  // Breakdown bars
   setTimeout(() => {
     $('#stability-value').textContent = score.breakdown.stability + '%';
     $('#stability-bar').style.width = score.breakdown.stability + '%';
@@ -455,16 +551,61 @@ function renderScore() {
     <span>🔴 ${score.stats.criticalFails} critical</span>
   `;
 
+  // === GAMIFICATION ===
+
+  // Streak system
+  if (score.total > state.lastScore && state.lastScore > 0) {
+    state.streak++;
+  } else if (state.lastScore > 0 && score.total <= state.lastScore) {
+    state.streak = 0;
+  }
+  state.lastScore = score.total;
+  localStorage.setItem('codejudge-streak', state.streak.toString());
+  localStorage.setItem('codejudge-last-score', state.lastScore.toString());
+
+  if (state.streak > 0) {
+    const streakDisplay = $('#streak-display');
+    streakDisplay.style.display = 'flex';
+    $('#streak-text').textContent = `Improvement Streak: +${state.streak} 🔥`;
+  }
+
+  // Hard Mode Badge — Chaos Survivor
+  const badgesRow = $('#badges-row');
+  badgesRow.innerHTML = '';
+  if (state.hardModeSurvived) {
+    badgesRow.style.display = 'flex';
+    const badge = document.createElement('div');
+    badge.className = 'badge chaos-survivor';
+    badge.innerHTML = '🏆 <span>Chaos Survivor</span>';
+    badgesRow.appendChild(badge);
+  }
+
+  // Judge Confidence Score (judge mode)
+  if (state.mode === 'judge') {
+    const confDisplay = $('#confidence-display');
+    confDisplay.style.display = 'block';
+    
+    const testWeight = (score.stats.passedAttacks / Math.max(1, score.stats.totalAttacks)) * 40;
+    const commitWeight = Math.min(30, (state.projectInfo.recentCommits || 0) * 3);
+    const stabilityWeight = (score.breakdown.stability / 100) * 30;
+    const confidence = Math.round(Math.min(100, testWeight + commitWeight + stabilityWeight));
+    
+    $('#confidence-value').textContent = confidence + '%';
+    $('#confidence-bar-fill').style.width = confidence + '%';
+    $('#confidence-basis').textContent = `Based on: ${score.stats.passedAttacks}/${score.stats.totalAttacks} tests passed · ${state.projectInfo.recentCommits || 0} recent commits · ${score.breakdown.stability}% stability`;
+  }
+
   // Continue button
   addNextButton($('.score-wrapper'), 'See Leaderboard →', () => {
-    goToStep(7); // → Leaderboard
+    goToStep(6); // → Leaderboard
     submitToLeaderboard();
   });
 }
 
-// ===== Step 7: Leaderboard =====
+// ===== Step 6: Leaderboard =====
 async function submitToLeaderboard() {
   try {
+    const level = getLevel(state.score.total);
     const res = await fetch('/api/leaderboard', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -474,11 +615,15 @@ async function submitToLeaderboard() {
         roast: state.review.roast,
         topFix: state.review.fixes[0],
         url: state.projectInfo.url,
+        level: level.name,
+        levelEmoji: level.emoji,
+        badge: state.hardModeSurvived ? 'Chaos Survivor 🏆' : '',
+        fullReview: state.review,
+        attackResults: state.attackResults
       }),
     });
     state.leaderboardEntry = await res.json();
 
-    // Fetch full leaderboard
     const lbRes = await fetch('/api/leaderboard');
     state.leaderboard = await lbRes.json();
 
@@ -500,29 +645,34 @@ function renderLeaderboard() {
 
     const rankDisplay = entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`;
     const rankClass = entry.rank <= 3 ? 'lb-rank lb-rank-medal' : 'lb-rank';
+    
+    const entryLevel = getLevel(entry.score);
 
     row.innerHTML = `
       <span class="${rankClass}">${rankDisplay}</span>
       <span class="lb-name">${entry.name}${isCurrent ? ' (you)' : ''}</span>
+      <span class="lb-level">${entryLevel.emoji} ${entryLevel.name}</span>
       <span class="lb-score">${entry.score}/100</span>
+      ${entry.badge ? `<span class="lb-badge">${entry.badge}</span>` : ''}
     `;
+    
+    row.addEventListener('click', () => openProjectDashboard(entry.id));
     table.appendChild(row);
   });
 
-  // Continue button
-  addNextButton($('.leaderboard-wrapper'), 'Get Share Card →', () => {
-    goToStep(8); // → Share
-    renderShareCard();
-  });
+  // Prepare share card
+  renderShareCard();
 }
 
-// ===== Step 8: Share =====
+// ===== Share Card (hidden, for download) =====
 function renderShareCard() {
   const entry = state.leaderboardEntry;
   const score = state.score;
+  const level = getLevel(score.total);
 
-  $('#share-badge').textContent = score.total >= 70 ? 'RESILIENT' : score.total >= 40 ? 'FRAGILE' : 'CRITICAL';
+  $('#share-badge').textContent = level.name.toUpperCase();
   $('#share-score-num').textContent = score.total;
+  $('#share-level').textContent = `${level.emoji} ${level.name}`;
   $('#share-roast').textContent = state.review.roast;
   $('#share-fix-text').textContent = state.review.fixes[0];
   $('#share-rank').textContent = `Rank #${entry.rank} of ${entry.total}`;
@@ -532,11 +682,11 @@ function renderShareCard() {
 
   // Copy button
   $('#share-copy-btn').addEventListener('click', () => {
-    const text = `🏆 CodeJudge AI Result\n\n📊 Score: ${score.total}/100\n🔥 "${state.review.roast}"\n🛠 Top Fix: ${state.review.fixes[0]}\n📈 Rank: #${entry.rank} of ${entry.total}\n\nJudge your project at codejudge.ai`;
+    const text = `🏆 CodeJudge AI Result\n\n📊 Score: ${score.total}/100\n${level.emoji} Level: ${level.name}\n🔥 "${state.review.roast}"\n🛠 Top Fix: ${state.review.fixes[0]}\n📈 Rank: #${entry.rank} of ${entry.total}${state.hardModeSurvived ? '\n🏆 Badge: Chaos Survivor' : ''}\n\nJudge your project at codejudge.ai`;
     navigator.clipboard.writeText(text).then(() => {
       const btn = $('#share-copy-btn');
       btn.textContent = '✅ Copied!';
-      setTimeout(() => btn.textContent = '📋 Copy to Clipboard', 2000);
+      setTimeout(() => btn.textContent = '📋 Copy Result', 2000);
     });
   });
 
@@ -550,7 +700,6 @@ async function downloadShareCard() {
   const card = $('#share-card');
 
   try {
-    // Use html2canvas from CDN
     if (!window.html2canvas) {
       const script = document.createElement('script');
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -578,17 +727,15 @@ async function downloadShareCard() {
 function goToStep(index) {
   showScreen(index);
 
-  // Auto-trigger step logic
   switch (index) {
     case 1: runProcessing(); break;
     case 2: runAttack(); break;
     case 3: showFailures(); break;
-    // Steps 4-8 are triggered by user or auto after previous
+    // Steps 4-6 are triggered by user clicks
   }
 }
 
 function addNextButton(container, text, onClick) {
-  // Remove existing next button
   const existing = container.querySelector('.next-step-btn');
   if (existing) existing.remove();
 
@@ -599,9 +746,112 @@ function addNextButton(container, text, onClick) {
   container.appendChild(btn);
 }
 
+// ===== Project Dashboard Modal =====
+async function openProjectDashboard(id) {
+  const modal = $('#dashboard-modal');
+  const loader = $('#dashboard-loading');
+  const body = $('#dashboard-body');
+  
+  modal.classList.remove('hidden');
+  loader.classList.remove('hidden');
+  body.classList.add('hidden');
+
+  try {
+    const res = await fetch(`/api/project/${id}`);
+    const project = await res.json();
+
+    if (!res.ok) throw new Error(project.error);
+
+    // Populate Header
+    $('#db-project-name').textContent = project.name;
+    $('#db-project-url').textContent = project.url;
+    
+    const level = getLevel(project.score);
+    $('#db-level-emoji').textContent = level.emoji;
+    $('#db-level-name').textContent = level.name;
+    $('#db-level-badge').style.borderColor = level.color;
+    $('#db-level-badge').style.color = level.color;
+
+    // Populate Metrics
+    $('#db-score-num').textContent = project.score;
+    $('#db-score-num').style.color = level.color;
+    $('#db-roast-text').textContent = project.roast;
+
+    // Populate Attacks
+    const attacksGrid = $('#db-attacks-grid');
+    attacksGrid.innerHTML = '';
+    (project.attackResults || []).forEach(res => {
+      const card = document.createElement('div');
+      card.className = `attack-card ${res.passed ? 'passed' : 'failed'}`;
+      card.innerHTML = `
+        <span class="attack-status">${res.passed ? '✅' : '❌'}</span>
+        <div class="attack-info">
+          <div class="attack-name">${res.name}</div>
+          <div class="attack-timing">${res.responseTime}ms</div>
+        </div>
+      `;
+      attacksGrid.appendChild(card);
+    });
+
+    // Populate AI Review
+    const review = project.fullReview || {};
+    
+    const issuesList = $('#db-issues-list');
+    issuesList.innerHTML = '';
+    (review.issues || []).forEach(iss => {
+      const li = document.createElement('li');
+      li.textContent = iss;
+      issuesList.appendChild(li);
+    });
+
+    const fixesList = $('#db-fixes-list');
+    fixesList.innerHTML = '';
+    (review.fixes || []).forEach(fix => {
+      const li = document.createElement('li');
+      li.textContent = fix;
+      fixesList.appendChild(li);
+    });
+
+    const preventList = $('#db-prevent-list');
+    preventList.innerHTML = '';
+    (review.prevention || []).forEach(prev => {
+      const li = document.createElement('li');
+      li.textContent = prev;
+      preventList.appendChild(li);
+    });
+
+    loader.classList.add('hidden');
+    body.classList.remove('hidden');
+  } catch (err) {
+    console.error('Failed to load dashboard:', err);
+    alert('Failed to load project details.');
+    modal.classList.add('hidden');
+  }
+}
+
+function initDashboardModal() {
+  const modal = $('#dashboard-modal');
+  const closeBtns = [$('#modal-close'), $('#modal-close-icon')];
+  
+  closeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+  });
+
+  // Close on ESC
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      modal.classList.add('hidden');
+    }
+  });
+}
+
 // ===== Init =====
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
+  initModeToggle();
   initLanding();
+  initDashboardModal();
   showScreen(0);
 });

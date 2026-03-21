@@ -14,6 +14,11 @@ const leaderboardSchema = new mongoose.Schema({
   roast: String,
   topFix: String,
   url: String,
+  level: String,
+  levelEmoji: String,
+  badge: String,
+  fullReview: Object,
+  attackResults: Array,
   timestamp: { type: Date, default: Date.now }
 });
 
@@ -24,7 +29,7 @@ const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
  */
 export async function getLeaderboard() {
   try {
-    const data = await Leaderboard.find().sort({ score: -1 }).lean();
+    const data = await Leaderboard.find({}, '-fullReview -attackResults').sort({ score: -1 }).lean();
     return data.map((entry, index) => ({
       ...entry,
       id: entry._id.toString(),
@@ -33,6 +38,23 @@ export async function getLeaderboard() {
   } catch (err) {
     console.error('getLeaderboard Error:', err);
     return [];
+  }
+}
+
+/**
+ * Get a single project by ID.
+ */
+export async function getProjectById(id) {
+  try {
+    const project = await Leaderboard.findById(id).lean();
+    if (!project) return null;
+    return {
+      ...project,
+      id: project._id.toString()
+    };
+  } catch (err) {
+    console.error('getProjectById Error:', err);
+    return null;
   }
 }
 
@@ -46,7 +68,12 @@ export async function addToLeaderboard(entry) {
       score: entry.score,
       roast: entry.roast,
       topFix: entry.topFix,
-      url: entry.url
+      url: entry.url,
+      level: entry.level || '',
+      levelEmoji: entry.levelEmoji || '',
+      badge: entry.badge || '',
+      fullReview: entry.fullReview || {},
+      attackResults: entry.attackResults || []
     });
 
     await newEntry.save();
@@ -62,6 +89,9 @@ export async function addToLeaderboard(entry) {
       roast: newEntry.roast,
       topFix: newEntry.topFix,
       url: newEntry.url,
+      level: newEntry.level,
+      levelEmoji: newEntry.levelEmoji,
+      badge: newEntry.badge,
       timestamp: newEntry.timestamp,
       rank,
       total: sorted.length
