@@ -296,14 +296,14 @@ function generateMockReview(projectInfo, attackResults) {
     title: "Add DoS Protection",
     issue: "API is vulnerable to brute-force and DoS",
     how: "Apply express-rate-limit middleware",
-    where: "server/index.js",
+    where: "api/index.js",
     code: "app.use(rateLimit({ windowMs: 15*60*1000, max: 100 }));"
   });
   if (!q.hasHelmet) fixes.push({
     title: "Secure HTTP Headers",
     issue: "Missing 11 standard security headers",
     how: "Install and mount the Helmet middleware",
-    where: "server/index.js",
+    where: "api/index.js",
     code: "const helmet = require('helmet'); app.use(helmet());"
   });
 
@@ -331,7 +331,7 @@ function generateMockReview(projectInfo, attackResults) {
   let topFixAfter = `// Secured State\nconst helmet = require('helmet');\n\napp.use(helmet());\napp.use('/', router);`;
 
   if (!q.hasTests) {
-    topFixBefore = `// In ${projectInfo.name}/server/index.js\napp.post('/register', (req, res) => {\n  db.users.save(req.body);\n  res.send('Done');\n});`;
+    topFixBefore = `// In ${projectInfo.name}/api/index.js\napp.post('/register', (req, res) => {\n  db.users.save(req.body);\n  res.send('Done');\n});`;
     topFixAfter = `// Fully tested and validated version\nimport { z } from 'zod';\nconst UserSchema = z.object({ email: z.string().email() });\n\napp.post('/register', validate(UserSchema), (req, res) => {\n  db.users.save(req.body);\n  res.status(201).json({ success: true });\n});`;
   }
 

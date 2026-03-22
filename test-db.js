@@ -1,14 +1,14 @@
 import mongoose from 'mongoose';
-import { getLeaderboard, addToLeaderboard } from './server/services/leaderboard.js';
+import { getLeaderboard, addToLeaderboard } from './api/services/leaderboard.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
 async function testDB() {
   console.log('Testing Database Connection...');
-  
+
   // Wait a second for mongoose connection (established in leaderboard.js)
   await new Promise(r => setTimeout(r, 2000));
-  
+
   try {
     const initialData = await getLeaderboard();
     console.log(`Current leaderboard entries: ${initialData.length}`);
@@ -27,7 +27,7 @@ async function testDB() {
 
     const finalData = await getLeaderboard();
     console.log(`Final leaderboard entries: ${finalData.length}`);
-    
+
     if (finalData.length > initialData.length) {
       console.log('✅ DATABASE TEST PASSED SUCCESSFULLY!');
     } else {
