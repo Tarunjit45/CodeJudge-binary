@@ -17,8 +17,8 @@ const leaderboardSchema = new mongoose.Schema({
   level: String,
   levelEmoji: String,
   badge: String,
-  fullReview: Object,
-  attackResults: Array,
+  fullReview: mongoose.Schema.Types.Mixed,
+  attackResults: mongoose.Schema.Types.Mixed,
   timestamp: { type: Date, default: Date.now }
 });
 

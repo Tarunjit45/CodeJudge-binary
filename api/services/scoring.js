@@ -46,17 +46,24 @@ export function calculateScore(projectInfo, attackResults, review) {
 
   const structure = Math.min(100, structurePoints);
 
-  // --- Final Score ---
-  const total = Math.round(
+  // --- Final Score & Authenticity Multiplier ---
+  let total = Math.round(
     (stability * 0.35) + (errorHandling * 0.35) + (structure * 0.30)
   );
 
+  // Authenticity Signal: If the project is likely fake, it's a huge penalty
+  const authen = projectInfo.authenticity?.score || 100;
+  const authenticityMultiplier = authen / 100;
+  total = Math.round(total * authenticityMultiplier);
+
   return {
     total: Math.max(0, Math.min(100, total)),
+    authenticityScore: authen,
     breakdown: {
       stability,
       errorHandling,
       structure,
+      authenticity: authen,
     },
     stats: {
       totalAttacks: totalChecks,

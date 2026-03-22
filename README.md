@@ -78,7 +78,7 @@ The entire UX follows a strict linear pipeline. Only one action is visible at a 
 
 ```
 CodeJudge-binary/
-├── server/                     # Express backend
+├── api/                        # Express backend (Vercel ready)
 │   ├── index.js                # Server entry (port 3001)
 │   ├── routes/
 │   │   └── api.js              # API routes with SSE streaming

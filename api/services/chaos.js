@@ -18,7 +18,7 @@ const CODE_ANALYSIS_CHECKS = [
       const q = info.qualitySignals || {};
       if (q.hasTests && q.testFileCount > 5) return { passed: true, detail: `Found ${q.testFileCount} test files using ${q.testFramework || 'unknown framework'}` };
       if (q.hasTests) return { passed: true, detail: `Tests detected (${q.testFileCount} test files) — but coverage may be thin` };
-      return { passed: false, detail: 'No test files found anywhere in the repository. Zero automated test coverage.' };
+      return { passed: false, detail: `No test files detected in this ${info.language || 'codebase'}. Zero automated test coverage leaves regression logic entirely unvalidated.` };
     },
   },
   {
@@ -28,7 +28,7 @@ const CODE_ANALYSIS_CHECKS = [
     check: (info) => {
       const q = info.qualitySignals || {};
       if (q.hasCI) return { passed: true, detail: `${q.ciPlatform} pipeline detected — automated builds are configured` };
-      return { passed: false, detail: 'No CI/CD pipeline found. No .github/workflows, .travis.yml, or similar configs exist.' };
+      return { passed: false, detail: `No CI/CD pipeline found for ${info.name}. No .github/workflows, .travis.yml, or similar configs exist in the root.` };
     },
   },
   {
@@ -139,14 +139,31 @@ const CODE_ANALYSIS_CHECKS = [
       const first = info.firstCommitDate;
       const total = info.totalCommits || 0;
       if (!first) return { passed: false, detail: 'Failed to retrieve commit history timeline from GitHub.' };
-      
+
       const firstDate = new Date(first);
       const lastDate = info.lastCommitDate ? new Date(info.lastCommitDate) : new Date();
       const diffMonths = (lastDate - firstDate) / (1000 * 60 * 60 * 24 * 30);
-      
+
       if (diffMonths >= 12 && total < 20) return { passed: false, detail: `Project inactive relative to age. Spans from ${firstDate.toDateString()} to ${lastDate.toDateString()} with only ${total} total commits.` };
       if (diffMonths < 1) return { passed: true, detail: `Recent project! ${total} commits in under a month. First commit: ${firstDate.toDateString()}` };
       return { passed: true, detail: `Healthy timeline: ${total} commits. Genesis commit on exactly ${firstDate.toDateString()}.` };
+    },
+  },
+  {
+    id: 'linter-config',
+    name: 'Static Analysis & Linting',
+    type: 'quality',
+    check: (info) => {
+      const q = info.qualitySignals || {};
+      const deps = [...(info.dependencies || []), ...(info.devDependencies || [])];
+
+      if (q.hasLinter) return { passed: true, detail: 'Linter configuration detected (ESLint/Stylelint) — code consistency is enforced' };
+      if (deps.some(d => d.includes('eslint') || d.includes('prettier') || d.includes('pylint') || d.includes('flake8') || d.includes('clippy') || d.includes('rubocop'))) {
+        return { passed: true, detail: 'Linting/formatting packages found in dependencies' };
+      }
+
+      const projectType = info.language === 'JavaScript' || info.language === 'TypeScript' ? 'JS/TS' : info.language;
+      return { passed: false, detail: `No linter found for this ${projectType} project. Code style is subjective and prone to "bicycle-shedding" during reviews.` };
     },
   },
 ];
@@ -245,7 +262,7 @@ async function checkMalformedJson(baseUrl) {
       body: '{ "username": "admin", "password": ', // malformed intentionally
     });
     const responseTime = Date.now() - start;
-    
+
     // We expect a robust error like 400 Bad Request, not a 500 crash or hanging connection.
     const passed = res.status === 400 || res.status === 404; // 404 is fine if endpoint doesn't exist
     return {

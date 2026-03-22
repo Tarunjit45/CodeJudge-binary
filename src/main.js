@@ -6,10 +6,10 @@
 
 // ===== Resilience Level System =====
 const LEVELS = [
-  { min: 0,  max: 39, name: 'Fragile',          emoji: '💀', color: '#ff4444' },
-  { min: 40, max: 59, name: 'Unstable',         emoji: '⚠️', color: '#ffaa00' },
-  { min: 60, max: 74, name: 'Surviving',         emoji: '🧠', color: '#3b82f6' },
-  { min: 75, max: 89, name: 'Resilient',         emoji: '⚡', color: '#a855f7' },
+  { min: 0, max: 39, name: 'Fragile', emoji: '💀', color: '#ff4444' },
+  { min: 40, max: 59, name: 'Unstable', emoji: '⚠️', color: '#ffaa00' },
+  { min: 60, max: 74, name: 'Surviving', emoji: '🧠', color: '#3b82f6' },
+  { min: 75, max: 89, name: 'Resilient', emoji: '⚡', color: '#a855f7' },
   { min: 90, max: 100, name: 'Production Ready', emoji: '🚀', color: '#39e75f' },
 ];
 
@@ -19,21 +19,40 @@ function getLevel(score) {
 
 // ===== State =====
 const state = {
-  currentStep: 0,
-  mode: 'participant', // 'participant' | 'judge'
-  projectInfo: null,
-  attackResults: [],
-  review: null,
-  score: null,
+  currentStep: parseInt(localStorage.getItem('codejudge-step') || '0'),
+  mode: localStorage.getItem('codejudge-mode') || 'participant', // 'participant' | 'judge'
+  projectInfo: JSON.parse(localStorage.getItem('codejudge-project') || 'null'),
+  attackResults: JSON.parse(localStorage.getItem('codejudge-attacks') || '[]'),
+  review: JSON.parse(localStorage.getItem('codejudge-review') || 'null'),
+  score: JSON.parse(localStorage.getItem('codejudge-score') || 'null'),
   leaderboardEntry: null,
   leaderboard: [],
   streak: parseInt(localStorage.getItem('codejudge-streak') || '0'),
   lastScore: parseInt(localStorage.getItem('codejudge-last-score') || '0'),
   hardModeSurvived: false,
+  githubToken: localStorage.getItem('codejudge-github-token') || null,
 };
 
+function saveState() {
+  localStorage.setItem('codejudge-step', state.currentStep);
+  localStorage.setItem('codejudge-mode', state.mode);
+  localStorage.setItem('codejudge-project', JSON.stringify(state.projectInfo));
+  localStorage.setItem('codejudge-attacks', JSON.stringify(state.attackResults));
+  localStorage.setItem('codejudge-review', JSON.stringify(state.review));
+  localStorage.setItem('codejudge-score', JSON.stringify(state.score));
+}
+
+// Listen for GitHub Token from Popup
+window.addEventListener('message', (event) => {
+  if (event.data.type === 'github-token') {
+    state.githubToken = event.data.token;
+    localStorage.setItem('codejudge-github-token', event.data.token);
+    updateAuthUI();
+  }
+});
+
 const SCREEN_IDS = [
-  'screen-landing', 'screen-processing', 'screen-attack',
+  'screen-landing', 'screen-processing', 'screen-xray', 'screen-attack',
   'screen-failures', 'screen-fix',
   'screen-score', 'screen-leaderboard',
 ];
@@ -93,6 +112,51 @@ function updateModeUI() {
   }
 }
 
+function initAuth() {
+  const loginBtn = $('#github-login-btn');
+  const logoutBtn = $('#github-logout-btn');
+
+  if (loginBtn) {
+    loginBtn.addEventListener('click', () => {
+      const width = 600, height = 700;
+      const left = (window.innerWidth / 2) - (width / 2);
+      const top = (window.innerHeight / 2) - (height / 2);
+      window.open('/api/auth/github', 'GitHub Login', `width=${width},height=${height},left=${left},top=${top}`);
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      state.githubToken = null;
+      localStorage.removeItem('codejudge-github-token');
+      updateAuthUI();
+    });
+  }
+
+  updateAuthUI();
+}
+
+function updateAuthUI() {
+  const loginBtn = $('#github-login-btn');
+  const logoutBtn = $('#github-logout-btn');
+  const status = $('#github-status');
+
+  if (state.githubToken) {
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (logoutBtn) logoutBtn.style.display = 'flex';
+    if (status) {
+      status.textContent = 'Token Connected (Deep Scan Enabled)';
+      status.style.color = 'var(--success)';
+    }
+  } else {
+    if (loginBtn) loginBtn.style.display = 'flex';
+    if (logoutBtn) logoutBtn.style.display = 'none';
+    if (status) {
+      status.textContent = 'Limited Scan (Public only)';
+      status.style.color = 'var(--text-dim)';
+    }
+  }
+}
 // ===== Pipeline Progress Bar =====
 function updatePipelineBar(step) {
   $$('.pipeline-step').forEach((el, i) => {
@@ -168,7 +232,11 @@ function initLanding() {
       const res = await fetch('/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, customConfig }),
+        body: JSON.stringify({
+          url,
+          customConfig,
+          githubToken: state.githubToken
+        }),
       });
 
       const data = await res.json();
@@ -178,7 +246,9 @@ function initLanding() {
       }
 
       state.projectInfo = data;
-      goToStep(1); // → Analyze
+      saveState();
+      renderXRay();
+      goToStep(2); // → X-Ray Screen
     } catch (err) {
       error.textContent = err.message;
       btn.disabled = false;
@@ -190,6 +260,107 @@ function initLanding() {
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleSubmit();
   });
+
+  const viewLbBtn = $('#view-leaderboard-btn');
+  if (viewLbBtn) {
+    viewLbBtn.addEventListener('click', async () => {
+      goToStep(7);
+      const res = await fetch('/api/leaderboard');
+      state.leaderboard = await res.json();
+      renderLeaderboard();
+    });
+  }
+
+  const startChaosBtn = $('#start-chaos-btn');
+  if (startChaosBtn) {
+    startChaosBtn.addEventListener('click', () => {
+      goToStep(1); // → Show processing logs
+      runProcessing();
+    });
+  }
+}
+
+// ===== X-Ray Analysis Rendering =====
+function renderXRay() {
+  const info = state.projectInfo;
+  const sig = info.qualitySignals || {};
+
+  // 1. Architecture
+  const arch = $('#xray-arch');
+  arch.innerHTML = `
+    <div class="xray-feature-item"><div class="xray-dot"></div> Frontend: ${sig.frontendFramework || (sig.isSPA ? 'Modern SPA' : 'Static/Vanilla')}</div>
+    <div class="xray-feature-item"><div class="xray-dot"></div> Styling: ${sig.stylingType || (sig.isTailwind ? 'Tailwind CSS' : 'Standard CSS')}</div>
+    <div class="xray-feature-item"><div class="xray-dot"></div> Backend: ${sig.backendFramework || (info.language === 'JavaScript' ? 'Node.js + Express' : info.language)}</div>
+    <div class="xray-feature-item"><div class="xray-dot"></div> Total Files: ${info.totalFiles || 'Unknown'}</div>
+  `;
+
+  // 2. Features
+  const features = $('#xray-features');
+  features.innerHTML = '';
+  const featureList = [
+    { cond: sig.hasAuth, label: 'Authentication System' },
+    { cond: sig.hasDatabase, label: 'Database Operations' },
+    { cond: sig.hasRoutes, label: 'API-based Routing' },
+    { cond: sig.hasTests, label: 'Testing Suite' },
+    { cond: sig.hasCI, label: 'CI/CD Pipeline' },
+    { cond: sig.hasDocker, label: 'Containerized (Docker)' }
+  ].filter(f => f.cond);
+
+  if (featureList.length === 0) featureList.push({ cond: true, label: 'Standard Codebase' });
+
+  featureList.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'xray-feature-item';
+    div.innerHTML = `<div class="xray-dot"></div> ${f.label}`;
+    features.appendChild(div);
+  });
+
+  // 3. Risk Mapping
+  const risks = $('#xray-risks');
+  risks.innerHTML = '';
+  const riskList = [];
+  const projectType = info.language || 'application';
+
+  if (!sig.hasTests) riskList.push(`Zero ${projectType} test units detected (Flying blind)`);
+  if (!sig.hasCI) riskList.push(`Manual deployment risk: No ${sig.ciPlatform || 'CI/CD'} pipeline`);
+  if (!sig.hasLinter) riskList.push(`${projectType} static analysis missing (Linter absent)`);
+  if (!sig.hasEnvExample) riskList.push('Missing environment variable templates (.env.example)');
+  if (!sig.hasTypescript && info.language === 'JavaScript') riskList.push('Untyped JavaScript logic (High runtime risk)');
+
+  if (riskList.length === 0) riskList.push(`Low structural risk for ${info.name}`);
+
+  riskList.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'xray-feature-item risk-item';
+    div.innerHTML = `<div class="xray-dot"></div> ${r}`;
+    risks.appendChild(div);
+  });
+
+  // 4. Timeline Truth
+  const timeline = $('#xray-timeline');
+  timeline.innerHTML = '';
+  if (info.authenticity) {
+    const auth = info.authenticity;
+    const scoreClass = auth.score > 80 ? 'success' : auth.score > 50 ? 'warning' : 'danger';
+
+    timeline.innerHTML = `
+      <div class="auth-score-mini ${scoreClass}">
+        Score: ${auth.score}/100 
+        <small>(${auth.verdict})</small>
+      </div>
+      <div class="xray-feature-item"><div class="xray-dot"></div> Created: ${new Date(info.createdAt).toLocaleDateString()}</div>
+      <div class="xray-feature-item"><div class="xray-dot"></div> First Commit: ${info.firstCommitDate ? new Date(info.firstCommitDate).toLocaleDateString() : 'N/A'}</div>
+      <div class="xray-feature-item"><div class="xray-dot"></div> Commits in hackathon: ${auth.stats.hackathonCommitCount}</div>
+      ${auth.flags.map(f => `
+        <div class="xray-feature-item flag-item ${f.severity}">
+          <div class="xray-dot"></div> <strong>${f.type}:</strong> ${f.message}
+          <div class="flag-details">${f.details}</div>
+        </div>
+      `).join('')}
+    `;
+  } else {
+    timeline.innerHTML = '<div class="xray-feature-item">Waiting for deep timeline probe…</div>';
+  }
 }
 
 async function fetchLeaderboardCount() {
@@ -226,15 +397,16 @@ function runProcessing() {
     'All probes complete. Launching attacks…',
   ] : [
     `Connecting to GitHub API…`,
-    `Found: ${state.projectInfo.fullName || state.projectInfo.name}`,
-    `Language: ${state.projectInfo.language} | Stars: ${state.projectInfo.stars} ⭐`,
-    `Fetching file tree… ${state.projectInfo.totalFiles || '?'} files found`,
-    `Reading package.json… ${(state.projectInfo.dependencies || []).length} deps, ${(state.projectInfo.devDependencies || []).length} dev deps`,
-    `Tests: ${q.hasTests ? `✅ Found (${q.testFramework || 'detected'})` : '❌ No test files found'}`,
-    `CI/CD: ${q.hasCI ? `✅ ${q.ciPlatform}` : '❌ No pipeline configured'}`,
-    `Security: helmet=${q.hasHelmet ? '✅' : '❌'} | rate-limit=${q.hasRateLimit ? '✅' : '❌'} | validation=${q.hasValidation ? '✅' : '❌'}`,
+    `Repo: ${state.projectInfo.fullName || state.projectInfo.name}`,
+    `Main language: ${state.projectInfo.language} (${Object.keys(state.projectInfo.languageBytes || {}).join(', ')})`,
+    `Social signals: ${state.projectInfo.stars} ⭐ | ${state.projectInfo.forks} 🍴`,
+    `Scanning tree… ${state.projectInfo.totalFiles || '?'} files discovered`,
+    `Reading package definitions… ${(state.projectInfo.dependencies || []).length} deps, ${(state.projectInfo.devDependencies || []).length} dev deps`,
+    `Tests: ${q.hasTests ? `✅ Found (${q.testFramework || 'detected'})` : `❌ No ${state.projectInfo.language} tests found`}`,
+    `CI/CD: ${q.hasCI ? `✅ ${q.ciPlatform}` : `❌ No ${state.projectInfo.name || 'project'} pipeline`}`,
+    `Security Middleware: helmet=${q.hasHelmet ? '✅' : '❌'} | rate-limit=${q.hasRateLimit ? '✅' : '❌'} | validation=${q.hasValidation ? '✅' : '❌'}`,
     `Docker: ${q.hasDocker ? '✅' : '❌'} | TypeScript: ${q.hasTypescript ? '✅' : '❌'} | Linter: ${q.hasLinter ? '✅' : '❌'}`,
-    `Genesis Commit: ${state.projectInfo.firstCommitDate ? new Date(state.projectInfo.firstCommitDate).toDateString() : 'Unknown'}`,
+    `Project Genesis: ${state.projectInfo.firstCommitDate ? new Date(state.projectInfo.firstCommitDate).toDateString() : 'Unknown'}`,
     `Recent activity: ${state.projectInfo.recentCommits || 0} commits in last 30 days`,
     'Analysis complete. Launching attacks…',
   ];
@@ -251,13 +423,16 @@ function runProcessing() {
       i++;
     } else {
       clearInterval(interval);
-      setTimeout(() => goToStep(2), 800); // → Attack
+      setTimeout(() => {
+        goToStep(3); // → Attack
+        runChaosSimulation();
+      }, 800);
     }
   }, 500);
 }
 
-// ===== Step 2: Attack =====
-function runAttack() {
+// ===== Step 3: Attack =====
+function runChaosSimulation() {
   const grid = $('#attack-grid');
   const summary = $('#attack-summary');
   grid.innerHTML = '';
@@ -288,8 +463,9 @@ function runAttack() {
           renderAttackCard(data.result, grid);
         } else if (data.type === 'complete') {
           state.attackResults = data.results;
+          saveState();
           showAttackSummary(summary);
-          setTimeout(() => goToStep(3), 2000); // → Breakpoint
+          setTimeout(() => goToStep(4), 2000); // → Breakpoint
         }
       }
     }
@@ -395,8 +571,10 @@ async function runReview() {
     });
 
     const data = await res.json();
+    console.log('[AI Review] Received structured analysis:', data);
     state.review = data.review;
     state.score = data.score;
+    saveState();
 
     renderReviewInline();
   } catch (err) {
@@ -419,9 +597,25 @@ function renderReviewInline() {
   // Issues
   const issuesList = $('#issues-list');
   issuesList.innerHTML = '';
-  state.review.issues.forEach(issue => {
+  const issues = Array.isArray(state.review.issues) ? state.review.issues : [];
+
+  issues.forEach(issue => {
     const li = document.createElement('li');
-    li.textContent = issue;
+    li.className = 'issue-item-new';
+
+    if (typeof issue === 'object') {
+      const sevClass = (issue.severity || 'high').toLowerCase();
+      li.innerHTML = `
+        <div class="issue-header">
+          <span class="issue-sev sev-${sevClass}">${issue.severity || 'HIGH'}</span>
+          <span class="issue-title">${issue.title}</span>
+        </div>
+        <div class="issue-desc">${issue.description}</div>
+        <div class="issue-evidence"><strong>Evidence:</strong> ${issue.evidence}</div>
+      `;
+    } else {
+      li.textContent = issue;
+    }
     issuesList.appendChild(li);
   });
 
@@ -446,7 +640,7 @@ function renderReviewInline() {
 
   // Continue button
   addNextButton($('.failures-wrapper'), state.mode === 'judge' ? 'See Detailed Fixes →' : 'Show Me How To Fix This →', () => {
-    goToStep(4); // → Fix
+    goToStep(5); // → Fix
     renderFix();
   });
 }
@@ -454,17 +648,66 @@ function renderReviewInline() {
 function renderFix() {
   const fixList = $('#fix-list');
   fixList.innerHTML = '';
-  state.review.fixes.forEach(fix => {
+
+  const fixes = Array.isArray(state.review.fixes) ? state.review.fixes : [];
+  fixes.forEach(fix => {
     const li = document.createElement('li');
-    li.textContent = fix;
+    li.className = 'rich-fix-item';
+
+    if (typeof fix === 'object') {
+      li.innerHTML = `
+        <div class="fix-item-main">
+          <div class="fix-item-top">
+            <span class="fix-item-label">WHAT</span>
+            <strong class="fix-item-title">${fix.title}</strong>
+          </div>
+          <div class="fix-item-row">
+            <span class="fix-item-label">WHERE</span>
+            <code class="fix-item-path">${fix.where}</code>
+          </div>
+          <div class="fix-item-row">
+            <span class="fix-item-label">HOW</span>
+            <p class="fix-item-desc">${fix.how}</p>
+          </div>
+          ${fix.code ? `
+            <div class="fix-item-code">
+              <pre><code>${fix.code}</code></pre>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    } else {
+      li.textContent = fix;
+    }
     fixList.appendChild(li);
   });
 
   const preventList = $('#prevent-list');
   preventList.innerHTML = '';
-  state.review.prevention.forEach(prev => {
+  const preps = Array.isArray(state.review.prevention) ? state.review.prevention : [];
+  preps.forEach(p => {
     const li = document.createElement('li');
-    li.textContent = prev;
+    li.className = 'rich-prevent-item';
+
+    if (typeof p === 'object') {
+      li.innerHTML = `
+        <div class="prevent-item-main">
+          <div class="prevent-item-top">
+            <span class="prevent-badge">INNOVATION</span>
+            <strong class="prevent-title">${p.feature}</strong>
+          </div>
+          <p class="prevent-desc">${p.description}</p>
+          <div class="prevent-benefit">🚀 ${p.benefit}</div>
+          ${p.codeSnippet ? `
+            <div class="prevent-code">
+              <pre><code>${p.codeSnippet}</code></pre>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    } else {
+      li.textContent = p;
+    }
     preventList.appendChild(li);
   });
 
@@ -480,7 +723,7 @@ function renderFix() {
   }
 
   addNextButton($('.fix-wrapper'), 'See My Score →', () => {
-    goToStep(5); // → Score
+    goToStep(6); // → Score
     renderScore();
   });
 }
@@ -584,12 +827,12 @@ function renderScore() {
   if (state.mode === 'judge') {
     const confDisplay = $('#confidence-display');
     confDisplay.style.display = 'block';
-    
+
     const testWeight = (score.stats.passedAttacks / Math.max(1, score.stats.totalAttacks)) * 40;
     const commitWeight = Math.min(30, (state.projectInfo.recentCommits || 0) * 3);
     const stabilityWeight = (score.breakdown.stability / 100) * 30;
     const confidence = Math.round(Math.min(100, testWeight + commitWeight + stabilityWeight));
-    
+
     $('#confidence-value').textContent = confidence + '%';
     $('#confidence-bar-fill').style.width = confidence + '%';
     $('#confidence-basis').textContent = `Based on: ${score.stats.passedAttacks}/${score.stats.totalAttacks} tests passed · ${state.projectInfo.recentCommits || 0} recent commits · ${score.breakdown.stability}% stability`;
@@ -597,7 +840,7 @@ function renderScore() {
 
   // Continue button
   addNextButton($('.score-wrapper'), 'See Leaderboard →', () => {
-    goToStep(6); // → Leaderboard
+    goToStep(7); // → Leaderboard
     submitToLeaderboard();
   });
 }
@@ -645,7 +888,7 @@ function renderLeaderboard() {
 
     const rankDisplay = entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`;
     const rankClass = entry.rank <= 3 ? 'lb-rank lb-rank-medal' : 'lb-rank';
-    
+
     const entryLevel = getLevel(entry.score);
 
     row.innerHTML = `
@@ -655,7 +898,7 @@ function renderLeaderboard() {
       <span class="lb-score">${entry.score}/100</span>
       ${entry.badge ? `<span class="lb-badge">${entry.badge}</span>` : ''}
     `;
-    
+
     row.addEventListener('click', () => openProjectDashboard(entry.id));
     table.appendChild(row);
   });
@@ -725,6 +968,8 @@ async function downloadShareCard() {
 
 // ===== Helpers =====
 function goToStep(index) {
+  state.currentStep = index;
+  saveState();
   showScreen(index);
 
   switch (index) {
@@ -751,7 +996,7 @@ async function openProjectDashboard(id) {
   const modal = $('#dashboard-modal');
   const loader = $('#dashboard-loading');
   const body = $('#dashboard-body');
-  
+
   modal.classList.remove('hidden');
   loader.classList.remove('hidden');
   body.classList.add('hidden');
@@ -765,7 +1010,7 @@ async function openProjectDashboard(id) {
     // Populate Header
     $('#db-project-name').textContent = project.name;
     $('#db-project-url').textContent = project.url;
-    
+
     const level = getLevel(project.score);
     $('#db-level-emoji').textContent = level.emoji;
     $('#db-level-name').textContent = level.name;
@@ -795,7 +1040,7 @@ async function openProjectDashboard(id) {
 
     // Populate AI Review
     const review = project.fullReview || {};
-    
+
     const issuesList = $('#db-issues-list');
     issuesList.innerHTML = '';
     (review.issues || []).forEach(iss => {
@@ -832,7 +1077,7 @@ async function openProjectDashboard(id) {
 function initDashboardModal() {
   const modal = $('#dashboard-modal');
   const closeBtns = [$('#modal-close'), $('#modal-close-icon')];
-  
+
   closeBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       modal.classList.add('hidden');
@@ -851,7 +1096,20 @@ function initDashboardModal() {
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initModeToggle();
+  initAuth();
   initLanding();
   initDashboardModal();
-  showScreen(0);
+
+  // Restore State
+  if (state.currentStep > 0 && state.projectInfo) {
+    if (state.projectInfo) renderXRay();
+    if (state.review) {
+      renderReviewInline();
+      renderFix();
+      renderScore ? renderScore() : null;
+    }
+    showScreen(state.currentStep);
+  } else {
+    showScreen(0);
+  }
 });

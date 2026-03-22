@@ -1,33 +1,49 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CodeJudge AI — Stress-Test & Judge Hackathon Projects</title>
-  <meta name="description" content="A system that judges, stress-tests, and improves hackathon projects instantly — for both participants and judges." />
+  <meta name="description"
+    content="A system that judges, stress-tests, and improves hackathon projects instantly — for both participants and judges." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="./style.css" />
 </head>
+
 <body>
   <div id="app">
-    <!-- Theme toggle -->
-    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
-      <span class="theme-icon">🌙</span>
-    </button>
+    <!-- Navbar -->
+    <header class="main-navbar">
+      <div class="nav-left">
+        <div class="nav-logo" onclick="window.location.reload()">
+          <span class="logo-code">&lt;</span>CJ<span class="logo-accent"> AI</span><span class="logo-code">/&gt;</span>
+        </div>
+      </div>
 
-    <!-- Mode Toggle (Participant / Judge) -->
-    <div id="mode-toggle-container" class="mode-toggle-container">
-      <button id="mode-participant" class="mode-btn active" data-mode="participant">
-        <span class="mode-icon">🧑‍💻</span>
-        <span class="mode-label">Builder</span>
-      </button>
-      <button id="mode-judge" class="mode-btn" data-mode="judge">
-        <span class="mode-icon">🧑‍⚖️</span>
-        <span class="mode-label">Judge</span>
-      </button>
-    </div>
+      <!-- Mode Toggle (Participant / Judge) -->
+      <div id="mode-toggle-container" class="mode-toggle-container">
+        <button id="mode-participant" class="mode-btn active" data-mode="participant">
+          <span class="mode-icon">🧑‍💻</span>
+          <span class="mode-label">Builder</span>
+        </button>
+        <button id="mode-judge" class="mode-btn" data-mode="judge">
+          <span class="mode-icon">🧑‍⚖️</span>
+          <span class="mode-label">Judge</span>
+        </button>
+      </div>
+
+      <div class="nav-right">
+        <!-- Theme toggle -->
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+          <span class="theme-icon">🌙</span>
+        </button>
+      </div>
+    </header>
 
     <!-- Pipeline Progress Bar -->
     <nav id="pipeline-bar" class="pipeline-bar">
@@ -38,31 +54,36 @@
         </div>
         <div class="pipeline-connector"></div>
         <div class="pipeline-step" data-step="1">
-          <div class="step-node"><span class="step-icon">🔍</span></div>
-          <span class="step-label">Analyze</span>
+          <div class="step-node"><span class="step-icon">📤</span></div>
+          <span class="step-label">Process</span>
         </div>
         <div class="pipeline-connector"></div>
         <div class="pipeline-step" data-step="2">
+          <div class="step-node"><span class="step-icon">🧠</span></div>
+          <span class="step-label">X-Ray</span>
+        </div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-step" data-step="3">
           <div class="step-node"><span class="step-icon">⚔️</span></div>
           <span class="step-label">Attack</span>
         </div>
         <div class="pipeline-connector"></div>
-        <div class="pipeline-step" data-step="3">
-          <div class="step-node"><span class="step-icon">🔴</span></div>
-          <span class="step-label" id="step3-label">Breakpoint</span>
-        </div>
-        <div class="pipeline-connector"></div>
         <div class="pipeline-step" data-step="4">
-          <div class="step-node"><span class="step-icon">🛠</span></div>
-          <span class="step-label">Fix</span>
+          <div class="step-node"><span class="step-icon">🔴</span></div>
+          <span class="step-label">Breakpoint</span>
         </div>
         <div class="pipeline-connector"></div>
         <div class="pipeline-step" data-step="5">
-          <div class="step-node"><span class="step-icon">📊</span></div>
-          <span class="step-label">Score</span>
+          <div class="step-node"><span class="step-icon">🛠️</span></div>
+          <span class="step-label">Fix</span>
         </div>
         <div class="pipeline-connector"></div>
         <div class="pipeline-step" data-step="6">
+          <div class="step-node"><span class="step-icon">🎯</span></div>
+          <span class="step-label">Score</span>
+        </div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-step" data-step="7">
           <div class="step-node"><span class="step-icon">🏆</span></div>
           <span class="step-label">Rank</span>
         </div>
@@ -77,41 +98,47 @@
         <div class="landing-wrapper">
           <div class="landing-glow"></div>
           <h1 class="landing-title">
-            <span class="title-code">&lt;</span>CodeJudge<span class="title-accent"> AI</span><span class="title-code">/&gt;</span>
+            <span class="title-code">&lt;</span>CodeJudge<span class="title-accent"> AI</span><span
+              class="title-code">/&gt;</span>
           </h1>
-          
+
           <!-- Dynamic tagline based on mode -->
           <p class="landing-tagline" id="landing-tagline">Let's see if your project survives reality.</p>
-          <p class="landing-description" id="landing-description">Submit your project → Get stress-tested → See failures → Get fixes → Improve your score</p>
+          <p class="landing-description" id="landing-description">Submit your project → Get stress-tested → See failures
+            → Get fixes → Improve your score</p>
+
+          <!-- GitHub Auth Controls -->
+          <div class="github-auth-container">
+            <button id="github-login-btn" class="github-btn login">
+              <span class="github-icon">GITHUB</span>
+              <span class="github-btn-text">Connect GitHub to find loophole in logic code </span>
+            </button>
+            <button id="github-logout-btn" class="github-btn logout" style="display:none;">
+              <span class="github-icon">GITHUB</span>
+              <span class="github-btn-text">Disconnect Deep Scan</span>
+            </button>
+            <p id="github-status" class="github-status">Limited Scan (Public only)</p>
+          </div>
 
           <div class="landing-input-group">
             <div class="input-wrapper">
               <span class="input-icon">🔗</span>
-              <input
-                type="url"
-                id="url-input"
-                class="landing-input"
-                placeholder="Paste a GitHub URL (e.g. https://github.com/user/repo)"
-                autocomplete="off"
-                spellcheck="false"
-              />
+              <input type="url" id="url-input" class="landing-input"
+                placeholder="Paste a GitHub URL (e.g. https://github.com/user/repo)" autocomplete="off"
+                spellcheck="false" />
             </div>
             <button id="judge-btn" class="judge-btn">
               <span class="btn-text" id="judge-btn-text">Judge My Project</span>
               <span class="btn-arrow">▶</span>
             </button>
           </div>
-          <div class="landing-input-group" style="margin-top: 12px; max-width: 560px; margin-left: auto; margin-right: auto;">
+          <div class="landing-input-group"
+            style="margin-top: 12px; max-width: 560px; margin-left: auto; margin-right: auto;">
             <div class="input-wrapper">
               <span class="input-icon">⚙️</span>
-              <input
-                type="text"
-                id="custom-config-input"
-                class="landing-input"
-                placeholder="Custom Judge Instructions (Optional - e.g. 'Focus heavily on Auth')"
-                autocomplete="off"
-                style="opacity: 0.8; font-size: 14px;"
-              />
+              <input type="text" id="custom-config-input" class="landing-input"
+                placeholder="Custom Judge Instructions (Optional - e.g. 'Focus heavily on Auth')" autocomplete="off"
+                style="opacity: 0.8; font-size: 14px;" />
             </div>
           </div>
           <p id="input-error" class="input-error"></p>
@@ -147,6 +174,59 @@
           <div class="log-container" id="log-container">
             <!-- log lines injected here -->
           </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 1.5: Project X-Ray -->
+      <section id="screen-xray" class="screen">
+        <div class="xray-wrapper">
+          <div class="xray-header">
+            <h2 class="section-title">🧠 Project X-Ray</h2>
+            <p class="section-subtitle">Deep structural analysis of your codebase</p>
+          </div>
+
+          <div class="xray-grid">
+            <!-- 1. Architecture -->
+            <div class="xray-card ripple-card">
+              <div class="xray-card-icon">🏗️</div>
+              <h3 class="xray-card-title">Architecture</h3>
+              <div class="xray-card-content" id="xray-arch">
+                <!-- Frontend/Backend/API -->
+              </div>
+            </div>
+
+            <!-- 2. Core Functionality -->
+            <div class="xray-card ripple-card">
+              <div class="xray-card-icon">⚡</div>
+              <h3 class="xray-card-title">Capabilities</h3>
+              <div class="xray-card-content" id="xray-features">
+                <!-- Features -->
+              </div>
+            </div>
+
+            <!-- 3. Risk Mapping -->
+            <div class="xray-card ripple-card risk-active">
+              <div class="xray-card-icon">⚠️</div>
+              <h3 class="xray-card-title">Risk Mapping</h3>
+              <div class="xray-card-content" id="xray-risks">
+                <!-- Risks -->
+              </div>
+            </div>
+
+            <!-- 4. Timeline Truth (New) -->
+            <div class="xray-card ripple-card timeline-truth-card">
+              <div class="xray-card-icon">⏱️</div>
+              <h3 class="xray-card-title">Timeline Truth</h3>
+              <div class="xray-card-content" id="xray-timeline">
+                <!-- Timeline/Authenticity -->
+              </div>
+            </div>
+          </div>
+
+          <button id="start-chaos-btn" class="judge-btn xray-btn">
+            <span class="btn-text">Begin Chaos Simulation</span>
+            <span class="btn-arrow">🔥</span>
+          </button>
         </div>
       </section>
 
@@ -208,7 +288,8 @@
           </div>
 
           <!-- Custom Verdict -->
-          <div class="review-card custom-verdict-card" id="custom-verdict-card" style="display:none; border-left: 3px solid #ff00ff; background: rgba(255, 0, 255, 0.05); margin-top: 16px;">
+          <div class="review-card custom-verdict-card" id="custom-verdict-card"
+            style="display:none; border-left: 3px solid #ff00ff; background: rgba(255, 0, 255, 0.05); margin-top: 16px;">
             <div class="review-card-header">
               <span class="review-card-icon">🎯</span>
               <span class="review-card-label" style="color: #ff00ff;">Manual Test Result</span>
@@ -240,7 +321,7 @@
             </div>
             <ul class="fix-list" id="fix-list"></ul>
           </div>
-          
+
           <div class="review-card before-after-card" id="before-after-card" style="display:none;">
             <div class="review-card-header">
               <span class="review-card-icon">⚖️</span>
@@ -279,7 +360,7 @@
       <section id="screen-score" class="screen">
         <div class="score-wrapper">
           <h2 class="section-title">📊 Resilience Score</h2>
-          
+
           <!-- Resilience Level -->
           <div class="level-display" id="level-display">
             <div class="level-badge" id="level-badge">
@@ -326,21 +407,27 @@
                 <span class="breakdown-label">Stability</span>
                 <span class="breakdown-value" id="stability-value">0%</span>
               </div>
-              <div class="breakdown-bar"><div class="breakdown-fill" id="stability-bar"></div></div>
+              <div class="breakdown-bar">
+                <div class="breakdown-fill" id="stability-bar"></div>
+              </div>
             </div>
             <div class="breakdown-item">
               <div class="breakdown-header">
                 <span class="breakdown-label">Error Handling</span>
                 <span class="breakdown-value" id="errorhandling-value">0%</span>
               </div>
-              <div class="breakdown-bar"><div class="breakdown-fill" id="errorhandling-bar"></div></div>
+              <div class="breakdown-bar">
+                <div class="breakdown-fill" id="errorhandling-bar"></div>
+              </div>
             </div>
             <div class="breakdown-item">
               <div class="breakdown-header">
                 <span class="breakdown-label">Structure</span>
                 <span class="breakdown-value" id="structure-value">0%</span>
               </div>
-              <div class="breakdown-bar"><div class="breakdown-fill" id="structure-bar"></div></div>
+              <div class="breakdown-bar">
+                <div class="breakdown-fill" id="structure-bar"></div>
+              </div>
             </div>
           </div>
           <div class="score-stats" id="score-stats"></div>
@@ -401,81 +488,82 @@
   </div>
 
   <script type="module" src="./main.js"></script>
-    <!-- Project Dashboard Modal -->
-    <div id="dashboard-modal" class="modal hidden">
-        <div class="modal-backdrop" id="modal-close"></div>
-        <div class="modal-content">
-            <button class="modal-close-btn" id="modal-close-icon">&times;</button>
-            <div id="dashboard-loading" class="dashboard-loading">
-                <div class="processing-spinner"></div>
-                <p>Retrieving deep analysis data...</p>
+  <!-- Project Dashboard Modal -->
+  <div id="dashboard-modal" class="modal hidden">
+    <div class="modal-backdrop" id="modal-close"></div>
+    <div class="modal-content">
+      <button class="modal-close-btn" id="modal-close-icon">&times;</button>
+      <div id="dashboard-loading" class="dashboard-loading">
+        <div class="processing-spinner"></div>
+        <p>Retrieving deep analysis data...</p>
+      </div>
+      <div id="dashboard-body" class="dashboard-body hidden">
+        <header class="dashboard-header">
+          <div class="dashboard-project-info">
+            <h2 id="db-project-name">Project Name</h2>
+            <span id="db-project-url" class="dashboard-url"></span>
+          </div>
+          <div id="db-level-badge" class="level-badge small">
+            <span id="db-level-emoji" class="level-emoji"></span>
+            <span id="db-level-name" class="level-name"></span>
+          </div>
+        </header>
+
+        <div class="dashboard-grid">
+          <!-- Left Column: Metrics -->
+          <div class="dashboard-column">
+            <div class="dashboard-card score-mini-card">
+              <div class="dashboard-score-val" id="db-score-num">0</div>
+              <div class="dashboard-score-label">Resilience Score</div>
             </div>
-            <div id="dashboard-body" class="dashboard-body hidden">
-                <header class="dashboard-header">
-                    <div class="dashboard-project-info">
-                        <h2 id="db-project-name">Project Name</h2>
-                        <span id="db-project-url" class="dashboard-url"></span>
-                    </div>
-                    <div id="db-level-badge" class="level-badge small">
-                        <span id="db-level-emoji" class="level-emoji"></span>
-                        <span id="db-level-name" class="level-name"></span>
-                    </div>
-                </header>
 
-                <div class="dashboard-grid">
-                    <!-- Left Column: Metrics -->
-                    <div class="dashboard-column">
-                        <div class="dashboard-card score-mini-card">
-                            <div class="dashboard-score-val" id="db-score-num">0</div>
-                            <div class="dashboard-score-label">Resilience Score</div>
-                        </div>
-
-                        <div class="dashboard-card roast-mini-card">
-                            <div class="review-card-header">
-                                <span class="review-card-icon">🔥</span>
-                                <span class="review-card-label">The Verdict</span>
-                            </div>
-                            <p id="db-roast-text" class="roast-text mini"></p>
-                        </div>
-
-                        <div class="dashboard-card attacks-mini-card">
-                            <div class="review-card-header">
-                                <span class="review-card-icon">⚔️</span>
-                                <span class="review-card-label">Attack Results</span>
-                            </div>
-                            <div id="db-attacks-grid" class="attack-grid mini"></div>
-                        </div>
-                    </div>
-
-                    <!-- Right Column: AI Deep Dive -->
-                    <div class="dashboard-column">
-                        <div class="dashboard-card ai-deep-card">
-                            <div class="review-card-header">
-                                <span class="review-card-icon">⚠</span>
-                                <span class="review-card-label">Critical Issues</span>
-                            </div>
-                            <ul id="db-issues-list" class="issues-list mini"></ul>
-                        </div>
-
-                        <div class="dashboard-card ai-deep-card">
-                            <div class="review-card-header">
-                                <span class="review-card-icon">🛠</span>
-                                <span class="review-card-label">Recommended Fixes</span>
-                            </div>
-                            <ul id="db-fixes-list" class="fix-list mini"></ul>
-                        </div>
-
-                        <div class="dashboard-card ai-deep-card">
-                            <div class="review-card-header">
-                                <span class="review-card-icon">🛡</span>
-                                <span class="review-card-label">Prevention Plan</span>
-                            </div>
-                            <ul id="db-prevent-list" class="prevent-list mini"></ul>
-                        </div>
-                    </div>
-                </div>
+            <div class="dashboard-card roast-mini-card">
+              <div class="review-card-header">
+                <span class="review-card-icon">🔥</span>
+                <span class="review-card-label">The Verdict</span>
+              </div>
+              <p id="db-roast-text" class="roast-text mini"></p>
             </div>
+
+            <div class="dashboard-card attacks-mini-card">
+              <div class="review-card-header">
+                <span class="review-card-icon">⚔️</span>
+                <span class="review-card-label">Attack Results</span>
+              </div>
+              <div id="db-attacks-grid" class="attack-grid mini"></div>
+            </div>
+          </div>
+
+          <!-- Right Column: AI Deep Dive -->
+          <div class="dashboard-column">
+            <div class="dashboard-card ai-deep-card">
+              <div class="review-card-header">
+                <span class="review-card-icon">⚠</span>
+                <span class="review-card-label">Critical Issues</span>
+              </div>
+              <ul id="db-issues-list" class="issues-list mini"></ul>
+            </div>
+
+            <div class="dashboard-card ai-deep-card">
+              <div class="review-card-header">
+                <span class="review-card-icon">🛠</span>
+                <span class="review-card-label">Recommended Fixes</span>
+              </div>
+              <ul id="db-fixes-list" class="fix-list mini"></ul>
+            </div>
+
+            <div class="dashboard-card ai-deep-card">
+              <div class="review-card-header">
+                <span class="review-card-icon">🛡</span>
+                <span class="review-card-label">Prevention Plan</span>
+              </div>
+              <ul id="db-prevent-list" class="prevent-list mini"></ul>
+            </div>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
 </body>
+
 </html>

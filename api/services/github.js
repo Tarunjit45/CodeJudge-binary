@@ -3,7 +3,7 @@
  * Fetches real repository data: metadata, README, file tree, package.json,
  * and detects actual quality signals (tests, CI, Docker, security configs).
  */
-export async function fetchGitHubRepo(url) {
+export async function fetchGitHubRepo(url, userToken = null) {
   const match = url.match(/github\.com\/([^/]+)\/([^/\s#?]+)/);
   if (!match) {
     throw new Error('Invalid GitHub URL. Expected format: https://github.com/owner/repo');
@@ -11,13 +11,14 @@ export async function fetchGitHubRepo(url) {
 
   const owner = encodeURIComponent(match[1]);
   const repo = encodeURIComponent(match[2].replace(/\.git$/, ''));
-  const headers = { 
-    'Accept': 'application/vnd.github.v3+json', 
+  const headers = {
+    'Accept': 'application/vnd.github.v3+json',
     'User-Agent': 'CodeJudge-AI-Scanner',
   };
 
-  if (process.env.GITHUB_TOKEN) {
-    headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
+  const activeToken = userToken || process.env.GITHUB_TOKEN;
+  if (activeToken) {
+    headers['Authorization'] = `token ${activeToken}`;
   }
 
   // --- 1. Fetch repo metadata ---
@@ -95,7 +96,32 @@ export async function fetchGitHubRepo(url) {
     }
   } catch { /* ignore */ }
 
-  // --- 5. Fetch package.json (if exists) for real dependency analysis ---
+  // --- 5. New: Fetch actual code snippets if authorized for deeper analysis ---
+  let keyFilesContent = "";
+  if (activeToken) {
+    try {
+      // Look for main/index/app files in the root or common subdirs
+      const keyFiles = fileTree.filter(path =>
+        path === 'index.js' || path === 'app.js' || path === 'main.js' ||
+        path === 'server.js' || path === 'index.ts' || path === 'main.py' ||
+        path.startsWith('api/') || path.startsWith('src/main') || path.startsWith('src/index')
+      ).slice(0, 5); // Limit to 5 files to avoid huge payloads
+
+      for (const path of keyFiles) {
+        const fileRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, { headers });
+        if (fileRes.ok) {
+          const fileData = await fileRes.json();
+          const content = Buffer.from(fileData.content, 'base64').toString('utf-8');
+          keyFilesContent += `\n--- FILE: ${path} ---\n${content.substring(0, 2000)}\n`;
+        }
+      }
+      console.log(`[GitHub] Deep scan complete. Fetched ${keyFiles.length} files. Total code length: ${keyFilesContent.length} chars.`);
+    } catch (err) {
+      console.warn('[GitHub] Failed to fetch deep code snippets:', err.message);
+    }
+  }
+
+  // --- 6. Fetch package.json (if exists) for real dependency analysis ---
   let packageJson = null;
   let dependencies = [];
   let devDependencies = [];
@@ -134,32 +160,45 @@ export async function fetchGitHubRepo(url) {
     } catch { /* ignore */ }
   }
 
-  // --- 6. Fetch full commit history & recent commits ---
+  // --- 7. Fetch full commit history & timeline details ---
   let recentCommits = 0;
   let totalCommits = 0;
   let firstCommitDate = null;
   let lastCommitDate = null;
-  
+  let commits = [];
+  let pushEvents = [];
+
   try {
     // A) Fetch total commits and first commit date
     const commitRes = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/commits?per_page=1`,
+      `https://api.github.com/repos/${owner}/${repo}/commits?per_page=30`, // Fetch up to 30 for analysis
       { headers }
     );
     if (commitRes.ok) {
-      const commits = await commitRes.json();
-      if (commits.length > 0) {
-        lastCommitDate = commits[0].commit?.author?.date || commits[0].commit?.committer?.date;
-        
+      const commitsData = await commitRes.json();
+      if (commitsData.length > 0) {
+        lastCommitDate = commitsData[0].commit?.author?.date || commitsData[0].commit?.committer?.date;
+        commits = commitsData.map(c => ({
+          sha: c.sha,
+          message: c.commit.message,
+          date: c.commit.author?.date || c.commit.committer?.date,
+          authorDate: c.commit.author?.date,
+          committerDate: c.commit.committer?.date,
+          author: c.commit.author?.name,
+        }));
+
         const linkHeader = commitRes.headers.get('link');
         if (linkHeader && linkHeader.includes('last')) {
           const lastMatch = linkHeader.match(/page=(\d+)>; rel="last"/);
           if (lastMatch) {
-            totalCommits = parseInt(lastMatch[1], 10);
-            
+            totalCommits = parseInt(lastMatch[1], 10) * 1; // base on per_page? No, GitHub pagination is tricky. 
+            // Better to assume per_page matches.
+            // Actually, we'll use the page count for total estimate.
+            totalCommits = parseInt(lastMatch[1], 10) * tokensPerPage(linkHeader) || 0;
+
             // Fetch the last page to get the earliest commit
             const firstCommitRes = await fetch(
-              `https://api.github.com/repos/${owner}/${repo}/commits?per_page=1&page=${totalCommits}`,
+              `https://api.github.com/repos/${owner}/${repo}/commits?per_page=1&page=${lastMatch[1]}`,
               { headers }
             );
             if (firstCommitRes.ok) {
@@ -170,29 +209,54 @@ export async function fetchGitHubRepo(url) {
             }
           }
         } else {
-          totalCommits = 1;
-          firstCommitDate = lastCommitDate;
+          totalCommits = commitsData.length;
+          firstCommitDate = commitsData[commitsData.length - 1].commit?.author?.date;
         }
       }
     }
 
-    // B) Fetch recent commits (last 30 days)
+    // B) Fetch recent pushes from Events (very hard to fake)
+    const eventRes = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/events?per_page=30`,
+      { headers }
+    );
+    if (eventRes.ok) {
+      const eventData = await eventRes.json();
+      pushEvents = eventData
+        .filter(e => e.type === 'PushEvent')
+        .map(e => ({
+          id: e.id,
+          pushedAt: e.created_at,
+          actor: e.actor.login,
+          commits: e.payload.commits?.length || 0
+        }));
+    }
+
+    // C) Fetch recent commits (last 30 days) count
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const recentRes = await fetch(
+    const countRes = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/commits?since=${since}&per_page=1`,
       { headers }
     );
-    if (recentRes.ok) {
-      const recentLinkHeader = recentRes.headers.get('link');
-      if (recentLinkHeader && recentLinkHeader.includes('last')) {
-        const lastMatch = recentLinkHeader.match(/page=(\d+)>; rel="last"/);
+    if (countRes.ok) {
+      const countLinkHeader = countRes.headers.get('link');
+      if (countLinkHeader && countLinkHeader.includes('last')) {
+        const lastMatch = countLinkHeader.match(/page=(\d+)>; rel="last"/);
         recentCommits = lastMatch ? parseInt(lastMatch[1]) : 1;
       } else {
-        const recentData = await recentRes.json();
-        recentCommits = recentData.length;
+        const countData = await countRes.json();
+        recentCommits = countData.length;
       }
     }
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.warn('[GitHub] Timeline fetch error:', err.message);
+  }
+
+  // helper to get per_page from link header
+  function tokensPerPage(link) {
+    const match = link.match(/per_page=(\d+)/);
+    return match ? parseInt(match[1]) : 30;
+  }
 
   // --- 7. Fetch open issues/PRs for health signal ---
   let openBugs = 0;
@@ -229,16 +293,68 @@ export async function fetchGitHubRepo(url) {
     hasWiki: repoData.has_wiki,
     license: repoData.license?.spdx_id || 'None',
     readme: readme.substring(0, 6000),
+    sourceCode: keyFilesContent,
     url,
     totalFiles: fileTree.length,
     fileTree: fileTree.slice(0, 200), // send first 200 files for analysis
-    qualitySignals,
+    qualitySignals: {
+      ...qualitySignals,
+      frontendFramework: (() => {
+        const allDeps = [...(dependencies || []), ...(devDependencies || [])];
+        if (allDeps.includes('next')) return 'Next.js (Fullstack)';
+        if (allDeps.includes('nuxt')) return 'Nuxt.js (Fullstack)';
+        if (allDeps.includes('react')) return 'React';
+        if (allDeps.includes('vue')) return 'Vue';
+        if (allDeps.includes('svelte')) return 'Svelte';
+        if (allDeps.includes('@angular/core')) return 'Angular';
+        if (allDeps.includes('vite')) return 'Vite-powered';
+        if (allDeps.includes('astro')) return 'Astro (SSG/SSR)';
+        if (allDeps.includes('solid-js')) return 'Solid.js';
+        return 'Standard/Vanilla';
+      })(),
+      backendFramework: (() => {
+        const allDeps = [...(dependencies || []), ...(devDependencies || [])];
+        const content = (readme || '').toLowerCase();
+
+        // Node.js frameworks
+        if (allDeps.includes('express')) return 'Express.js';
+        if (allDeps.includes('fastify')) return 'Fastify';
+        if (allDeps.includes('@nestjs/core')) return 'NestJS';
+        if (allDeps.includes('koa')) return 'Koa.js';
+        if (allDeps.includes('hapi')) return 'Hapi.js';
+
+        // Python frameworks (checking README context or common file indicators if needed, though deps are best)
+        if (/fastapi/i.test(content)) return 'FastAPI';
+        if (/flask/i.test(content)) return 'Flask';
+        if (/django/i.test(content)) return 'Django';
+
+        // Return language default if no specific framework found
+        if (repoData.language === 'JavaScript' || repoData.language === 'TypeScript') return 'Node.js Server';
+        return repoData.language || 'Generic API';
+      })(),
+      isTailwind: qualitySignals.isTailwind || (dependencies || []).some(d => d.includes('tailwind')),
+      stylingType: (() => {
+        const allDeps = [...(dependencies || []), ...(devDependencies || [])];
+        if (allDeps.includes('tailwindcss')) return 'Tailwind CSS';
+        if (allDeps.includes('sass') || allDeps.includes('node-sass')) return 'SASS/SCSS';
+        if (allDeps.includes('styled-components')) return 'Styled Components';
+        if (allDeps.includes('emotion') || allDeps.includes('@emotion/react')) return 'Emotion';
+        if (allDeps.includes('bootstrap')) return 'Bootstrap UI';
+        if (allDeps.includes('vbulletin')) return 'MUI (Material UI)';
+        if (allDeps.includes('ant-design')) return 'Ant Design';
+        return 'Standard CSS/Vanilla';
+      })(),
+      hasAuth: qualitySignals.hasAuth || (dependencies || []).some(d => d.includes('auth') || d.includes('passport') || d.includes('jwt') || d.includes('clerk') || d.includes('auth0')),
+      hasDatabase: qualitySignals.hasDatabase || (dependencies || []).some(d => d.includes('mongoose') || d.includes('prisma') || d.includes('sequelize') || d.includes('pg') || d.includes('redis') || d.includes('firebase'))
+    },
     dependencies,
     devDependencies,
     recentCommits,
     totalCommits,
     firstCommitDate,
     lastCommitDate,
+    commits,
+    pushEvents,
     scripts: packageJson?.scripts ? Object.keys(packageJson.scripts) : [],
   };
 }
@@ -266,6 +382,11 @@ function analyzeFileTree(files) {
     ciPlatform: null,
     packageManager: null,
     testFileCount: 0,
+    hasAuth: false,
+    hasDatabase: false,
+    hasRoutes: false,
+    isSPA: false,
+    isTailwind: false,
   };
 
   for (const f of files) {
@@ -307,6 +428,12 @@ function analyzeFileTree(files) {
     if (lower === '.prettierrc' || lower === '.prettierrc.json' || lower === '.prettierrc.js' || lower === 'prettier.config.js') signals.hasPrettier = true;
     if (lower === '.editorconfig') signals.hasEditorconfig = true;
     if (lower === 'changelog.md' || lower === 'history.md') signals.hasChangelog = true;
+
+    // Feature detection based on file names
+    if (lower.includes('auth') || lower.includes('login') || lower.includes('passport') || lower.includes('jwt') || lower.includes('clerk')) signals.hasAuth = true;
+    if (lower.includes('mongoose') || lower.includes('prisma') || lower.includes('sequelize') || lower.includes('db.config') || lower.includes('database')) signals.hasDatabase = true;
+    if (lower.includes('/routes/') || lower.includes('/api/') || lower.includes('controller')) signals.hasRoutes = true;
+    if (lower.includes('tailwind.config')) signals.isTailwind = true;
   }
 
   return signals;
