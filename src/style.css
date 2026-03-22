@@ -2335,3 +2335,239 @@ body {
 .risk-active {
   border-left: 4px solid var(--error);
 }
+/* ===== Project X-Ray Styles ===== */
+.xray-wrapper {
+    text-align: center;
+}
+
+.xray-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin: 30px auto;
+}
+
+.xray-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    text-align: left;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.xray-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--accent-glow);
+    transform: translateY(-4px);
+}
+
+.xray-card-icon {
+    font-size: 28px;
+    margin-bottom: 12px;
+}
+
+.xray-card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.xray-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.xray-feature-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+.xray-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+}
+
+.risk-item {
+    color: #ff4444 !important;
+    background: rgba(255, 68, 68, 0.05);
+    border: 1px solid rgba(255, 68, 68, 0.1);
+}
+
+.risk-item .xray-dot {
+    background: #ff4444;
+    box-shadow: 0 0 8px #ff4444;
+}
+
+.xray-btn {
+    padding: 18px 48px;
+    font-size: 1.1rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== Review Card Styles (Roast, Weaknesses, Verdict) ===== */
+.review-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.review-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+}
+
+.review-card-icon {
+    font-size: 20px;
+}
+
+.review-card-label {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.roast-card {
+    border-left: 4px solid var(--warning);
+    background: linear-gradient(to right, rgba(255, 170, 0, 0.05), transparent);
+}
+
+.roast-text {
+    font-size: 1.2rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--text-primary);
+    font-style: italic;
+}
+
+.issues-card {
+    border-left: 4px solid var(--error);
+}
+
+.issues-list {
+    list-style: none;
+}
+
+/* Reusing issue-item-new defined above, but ensuring consistency */
+.issue-item-new {
+    padding: 16px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+}
+
+/* Judge Verdict Card */
+.judge-verdict-card {
+    background: var(--bg-card);
+    border: 1px solid var(--accent);
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 24px;
+}
+
+.judge-verdict-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.judge-row {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.judge-label {
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.judge-val {
+    color: var(--text-primary);
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Reality Shock Panel */
+.reality-shock {
+    margin: 40px auto;
+    padding: 30px;
+    background: var(--bg-card);
+    border: 2px solid var(--border);
+    border-radius: 20px;
+    max-width: 400px;
+}
+
+.shock-header {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+}
+
+.shock-question {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.shock-answer {
+    font-size: 3rem;
+    font-weight: 900;
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+}
+
+.shock-subtext {
+    font-size: 14px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Breakpoint Banner */
+.breakpoint-banner {
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid var(--error);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.breakpoint-title {
+    color: var(--error);
+    font-weight: 800;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.breakpoint-desc {
+    font-size: 16px;
+    line-height: 1.5;
+}

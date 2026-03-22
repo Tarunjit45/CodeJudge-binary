@@ -18,13 +18,23 @@ function getLevel(score) {
 }
 
 // ===== State =====
+const safeParse = (key, fallback) => {
+  const val = localStorage.getItem(key);
+  if (!val || val === 'undefined') return fallback;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return fallback;
+  }
+};
+
 const state = {
   currentStep: parseInt(localStorage.getItem('codejudge-step') || '0'),
-  mode: localStorage.getItem('codejudge-mode') || 'participant', // 'participant' | 'judge'
-  projectInfo: JSON.parse(localStorage.getItem('codejudge-project') || 'null'),
-  attackResults: JSON.parse(localStorage.getItem('codejudge-attacks') || '[]'),
-  review: JSON.parse(localStorage.getItem('codejudge-review') || 'null'),
-  score: JSON.parse(localStorage.getItem('codejudge-score') || 'null'),
+  mode: localStorage.getItem('codejudge-mode') || 'participant',
+  projectInfo: safeParse('codejudge-project', null),
+  attackResults: safeParse('codejudge-attacks', []),
+  review: safeParse('codejudge-review', null),
+  score: safeParse('codejudge-score', null),
   leaderboardEntry: null,
   leaderboard: [],
   streak: parseInt(localStorage.getItem('codejudge-streak') || '0'),
@@ -34,12 +44,12 @@ const state = {
 };
 
 function saveState() {
-  localStorage.setItem('codejudge-step', state.currentStep);
-  localStorage.setItem('codejudge-mode', state.mode);
-  localStorage.setItem('codejudge-project', JSON.stringify(state.projectInfo));
-  localStorage.setItem('codejudge-attacks', JSON.stringify(state.attackResults));
-  localStorage.setItem('codejudge-review', JSON.stringify(state.review));
-  localStorage.setItem('codejudge-score', JSON.stringify(state.score));
+  localStorage.setItem('codejudge-step', state.currentStep || '0');
+  localStorage.setItem('codejudge-mode', state.mode || 'participant');
+  localStorage.setItem('codejudge-project', JSON.stringify(state.projectInfo || null));
+  localStorage.setItem('codejudge-attacks', JSON.stringify(state.attackResults || []));
+  localStorage.setItem('codejudge-review', JSON.stringify(state.review || null));
+  localStorage.setItem('codejudge-score', JSON.stringify(state.score || null));
 }
 
 // Listen for GitHub Token from Popup
@@ -247,8 +257,7 @@ function initLanding() {
 
       state.projectInfo = data;
       saveState();
-      renderXRay();
-      goToStep(2); // → X-Ray Screen
+      goToStep(1); // → Show processing logs first
     } catch (err) {
       error.textContent = err.message;
       btn.disabled = false;
@@ -274,8 +283,7 @@ function initLanding() {
   const startChaosBtn = $('#start-chaos-btn');
   if (startChaosBtn) {
     startChaosBtn.addEventListener('click', () => {
-      goToStep(1); // → Show processing logs
-      runProcessing();
+      goToStep(3); // → Launch Attacks / Chaos Simulation
     });
   }
 }
@@ -424,8 +432,7 @@ function runProcessing() {
     } else {
       clearInterval(interval);
       setTimeout(() => {
-        goToStep(3); // → Attack
-        runChaosSimulation();
+        goToStep(2); // → Now show X-Ray Screen
       }, 800);
     }
   }, 500);
@@ -571,6 +578,8 @@ async function runReview() {
     });
 
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch review');
+
     console.log('[AI Review] Received structured analysis:', data);
     state.review = data.review;
     state.score = data.score;
@@ -579,70 +588,96 @@ async function runReview() {
     renderReviewInline();
   } catch (err) {
     console.error('Review failed:', err);
+    // Show a fallback review so the user isn't stuck
+    state.review = state.review || { 
+      roast: "The AI judge is speechless (error fetching review). Let's just look at the score.",
+      issues: ["Check the logs for technical failures."],
+      fixes: ["Internal server error - check your API keys."],
+      prevention: ["Implement better error monitoring."],
+      impact: "Unknown impact due to processing failure."
+    };
+    saveState();
+    renderReviewInline();
   }
 }
 
 function renderReviewInline() {
-  // Roast
-  $('#roast-text').textContent = state.review.roast;
+  try {
+    if (state.review) {
+      // Roast
+      const roastText = $('#roast-text');
+      if (roastText) roastText.textContent = state.review.roast || 'No roast today.';
 
-  // Custom Verdict
-  if (state.review.customVerdict && state.review.customVerdict.trim() !== '') {
-    $('#custom-verdict-card').style.display = 'block';
-    $('#custom-verdict-text').textContent = state.review.customVerdict;
-  } else {
-    $('#custom-verdict-card').style.display = 'none';
-  }
+      // Custom Verdict
+      const customVerdictCard = $('#custom-verdict-card');
+      if (customVerdictCard) {
+        if (state.review.customVerdict && state.review.customVerdict.trim() !== '') {
+          customVerdictCard.style.display = 'block';
+          $('#custom-verdict-text').textContent = state.review.customVerdict;
+        } else {
+          customVerdictCard.style.display = 'none';
+        }
+      }
 
-  // Issues
-  const issuesList = $('#issues-list');
-  issuesList.innerHTML = '';
-  const issues = Array.isArray(state.review.issues) ? state.review.issues : [];
+      // Issues
+      const issuesList = $('#issues-list');
+      if (issuesList) {
+        issuesList.innerHTML = '';
+        const issues = Array.isArray(state.review.issues) ? state.review.issues : [];
 
-  issues.forEach(issue => {
-    const li = document.createElement('li');
-    li.className = 'issue-item-new';
+        issues.forEach(issue => {
+          const li = document.createElement('li');
+          li.className = 'issue-item-new';
 
-    if (typeof issue === 'object') {
-      const sevClass = (issue.severity || 'high').toLowerCase();
-      li.innerHTML = `
-        <div class="issue-header">
-          <span class="issue-sev sev-${sevClass}">${issue.severity || 'HIGH'}</span>
-          <span class="issue-title">${issue.title}</span>
-        </div>
-        <div class="issue-desc">${issue.description}</div>
-        <div class="issue-evidence"><strong>Evidence:</strong> ${issue.evidence}</div>
-      `;
-    } else {
-      li.textContent = issue;
+          if (typeof issue === 'object') {
+            const sevClass = (issue.severity || 'high').toLowerCase();
+            li.innerHTML = `
+              <div class="issue-header">
+                <span class="issue-sev sev-${sevClass}">${issue.severity || 'HIGH'}</span>
+                <span class="issue-title">${issue.title}</span>
+              </div>
+              <div class="issue-desc">${issue.description}</div>
+              <div class="issue-evidence"><strong>Evidence:</strong> ${issue.evidence}</div>
+            `;
+          } else {
+            li.textContent = issue;
+          }
+          issuesList.appendChild(li);
+        });
+      }
+
+      // Judge mode: structured verdict
+      if (state.mode === 'judge') {
+        const judgeCard = $('#judge-verdict-card');
+        if (judgeCard) {
+          judgeCard.style.display = 'block';
+          const body = $('#judge-verdict-body');
+          const totalPassed = state.attackResults.filter(a => a.passed).length;
+          const totalFailed = state.attackResults.length - totalPassed;
+          const level = getLevel(state.score?.total || 0);
+
+          body.innerHTML = `
+            <div class="judge-row"><span class="judge-label">Project</span><span class="judge-val">${state.projectInfo?.fullName || state.projectInfo?.name}</span></div>
+            <div class="judge-row"><span class="judge-label">Score</span><span class="judge-val" style="color:${level.color}">${state.score?.total || 0}/100</span></div>
+            <div class="judge-row"><span class="judge-label">Level</span><span class="judge-val">${level.emoji} ${level.name}</span></div>
+            <div class="judge-row"><span class="judge-label">Tests Passed</span><span class="judge-val">${totalPassed}/${state.attackResults?.length || 0}</span></div>
+            <div class="judge-row"><span class="judge-label">Critical Issues</span><span class="judge-val" style="color:var(--error)">${state.score?.stats?.criticalFails || 0}</span></div>
+            <div class="judge-row"><span class="judge-label">Verdict</span><span class="judge-val">${(state.score?.total || 0) >= 75 ? '✅ Recommend' : (state.score?.total || 0) >= 50 ? '⚠️ Needs Work' : '❌ Not Ready'}</span></div>
+          `;
+        }
+      }
     }
-    issuesList.appendChild(li);
-  });
-
-  // Judge mode: structured verdict
-  if (state.mode === 'judge') {
-    const judgeCard = $('#judge-verdict-card');
-    judgeCard.style.display = 'block';
-    const body = $('#judge-verdict-body');
-    const totalPassed = state.attackResults.filter(a => a.passed).length;
-    const totalFailed = state.attackResults.length - totalPassed;
-    const level = getLevel(state.score.total);
-
-    body.innerHTML = `
-      <div class="judge-row"><span class="judge-label">Project</span><span class="judge-val">${state.projectInfo.fullName || state.projectInfo.name}</span></div>
-      <div class="judge-row"><span class="judge-label">Score</span><span class="judge-val" style="color:${level.color}">${state.score.total}/100</span></div>
-      <div class="judge-row"><span class="judge-label">Level</span><span class="judge-val">${level.emoji} ${level.name}</span></div>
-      <div class="judge-row"><span class="judge-label">Tests Passed</span><span class="judge-val">${totalPassed}/${state.attackResults.length}</span></div>
-      <div class="judge-row"><span class="judge-label">Critical Issues</span><span class="judge-val" style="color:var(--error)">${state.score.stats.criticalFails}</span></div>
-      <div class="judge-row"><span class="judge-label">Verdict</span><span class="judge-val">${state.score.total >= 75 ? '✅ Recommend' : state.score.total >= 50 ? '⚠️ Needs Work' : '❌ Not Ready'}</span></div>
-    `;
+  } catch (err) {
+    console.error('Error rendering review:', err);
   }
 
-  // Continue button
-  addNextButton($('.failures-wrapper'), state.mode === 'judge' ? 'See Detailed Fixes →' : 'Show Me How To Fix This →', () => {
-    goToStep(5); // → Fix
-    renderFix();
-  });
+  // Always show CONTINUE button on Step 4 (Breakpoint) even if review is loading
+  const failuresWrapper = $('.failures-wrapper');
+  if (failuresWrapper) {
+    addNextButton(failuresWrapper, state.mode === 'judge' ? 'See Detailed Fixes →' : 'Show Me How To Fix This →', () => {
+      goToStep(5); // → Fix
+    });
+  }
 }
 
 function renderFix() {
@@ -724,7 +759,6 @@ function renderFix() {
 
   addNextButton($('.fix-wrapper'), 'See My Score →', () => {
     goToStep(6); // → Score
-    renderScore();
   });
 }
 
@@ -974,9 +1008,12 @@ function goToStep(index) {
 
   switch (index) {
     case 1: runProcessing(); break;
-    case 2: runAttack(); break;
-    case 3: showFailures(); break;
-    // Steps 4-6 are triggered by user clicks
+    case 2: renderXRay(); break;
+    case 3: runChaosSimulation(); break;
+    case 4: showFailures(); break;
+    case 5: renderFix(); break;
+    case 6: renderScore(); break;
+    case 7: renderLeaderboard(); break;
   }
 }
 

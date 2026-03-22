@@ -121,6 +121,22 @@ export function analyzeAuthenticity(repoData, hackathonWindow = null) {
         }
     }
 
+    // 3. AI Pattern Detection (Experimental)
+    if (repoData.sourceCode) {
+        const aiAnalysis = detectAIPatterns(repoData.sourceCode);
+        results.aiDetection = aiAnalysis;
+        
+        if (aiAnalysis.confidence > 60) {
+            results.score -= Math.max(0, (aiAnalysis.confidence - 40) / 2); // Penalize based on AI confidence
+            results.flags.push({
+                type: 'AI_PATTERN',
+                severity: aiAnalysis.confidence > 80 ? 'danger' : 'warning',
+                message: `${aiAnalysis.confidence}% AI-generated signature detected`,
+                details: aiAnalysis.reason
+            });
+        }
+    }
+
     // Final Verdict
     if (results.score > 90) results.verdict = 'High Confidence (Authentic)';
     else if (results.score > 70) results.verdict = 'Likely Authentic';
@@ -130,4 +146,71 @@ export function analyzeAuthenticity(repoData, hackathonWindow = null) {
     results.score = Math.max(0, results.score);
 
     return results;
+}
+
+/**
+ * Detects common AI/LLM patterns in source code.
+ */
+function detectAIPatterns(code) {
+    let confidence = 0;
+    const flags = [];
+    const lines = code.split('\n');
+    const lowerCode = code.toLowerCase();
+
+    // 1. Check for over-verbose, perfect LLM-style comments
+    const verboseComments = [
+        "this function implements", "here is the", "below is the code",
+        "i will now", "let's start by", "you can replace this",
+        "implementation of the", "now we need to", "make sure to"
+    ];
+    
+    let commentCount = 0;
+    verboseComments.forEach(search => {
+        if (lowerCode.includes(search)) {
+            commentCount++;
+            confidence += 10;
+        }
+    });
+    if (commentCount > 1) flags.push("Over-verbose instruction-style comments");
+
+    // 2. Look for LLM placeholders or boilerplate
+    const placeholders = [
+        "// add your", "your_api_key", "your-project-id", 
+        "// implementation here", "// handle the error",
+        "console.log('done')", "return response", "await fetch(url)"
+    ];
+    placeholders.forEach(search => {
+        if (lowerCode.includes(search)) {
+            confidence += 5;
+        }
+    });
+
+    // 3. Perfect formatting check (no trailing spaces, uniform indent)
+    // AI usually outputs perfect 2 or 4 space indents
+    const indents = lines.filter(l => l.trim().length > 0)
+                         .map(l => l.match(/^\s*/)[0].length);
+    const uniformIndents = indents.every(i => i % 2 === 0);
+    if (uniformIndents && lines.length > 20) confidence += 10;
+
+    // 4. JSDoc overkill
+    const jsDocCount = (code.match(/\/\*\*[\s\S]*?\*\//g) || []).length;
+    if (jsDocCount > 5 && code.length < 5000) {
+        confidence += 15;
+        flags.push("Over-documented codebase (JSDoc overkill)");
+    }
+
+    // 5. Architecture "Too Standard"
+    if (lowerCode.includes("const express = require('express')") && lowerCode.includes("app.use(express.json())")) {
+        // Standard boilerplate is common but AI loves it
+        confidence += 5;
+    }
+
+    // Cap confidence
+    confidence = Math.min(100, Math.round(confidence));
+
+    let reason = "The code follows natural manual development patterns.";
+    if (confidence > 80) reason = `High AI signature: ${flags.join(", ") || "Artificial consistency detected."}`;
+    else if (confidence > 40) reason = `Moderate AI signature: ${flags.join(", ") || "Too many standard boilerplates."}`;
+
+    return { confidence, flags, reason };
 }

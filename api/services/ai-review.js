@@ -133,8 +133,9 @@ METADATA:
 - Project Name: ${projectInfo.name}
 - Total Commits: ${projectInfo.totalCommits || 0}
 - Timeline Integrity: ${projectInfo.authenticity?.verdict || 'Unknown'} (Authenticity Score: ${projectInfo.authenticity?.score || 0}/100)
-- Detected Stack: Frontend=${sig.frontendFramework}, Backend=${sig.backendFramework}, DB=${sig.hasDatabase ? 'Yes' : 'No'}
-- Quality Checks: Tests=${sig.hasTests}, CI/CD=${sig.hasCI}, Docker=${sig.hasDocker}
+- AI Detection: ${projectInfo.authenticity?.aiDetection?.confidence || 0}% confidence (${projectInfo.authenticity?.aiDetection?.reason || 'N/A'})
+- Detected Stack: Frontend=${q.frontendFramework}, Backend=${q.backendFramework}, DB=${q.hasDatabase ? 'Yes' : 'No'}
+- Quality Checks: Tests=${q.hasTests}, CI/CD=${q.hasCI}, Docker=${q.hasDocker}
 
 ---
 Output MUST be a JSON array of issues:

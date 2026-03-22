@@ -90,29 +90,62 @@ export async function fetchGitHubRepo(url, userToken = null) {
       fileTree = (treeData.tree || [])
         .filter(f => f.type === 'blob')
         .map(f => f.path);
-
-      // Deep quality signal detection from REAL file tree
+      
+      console.log(`[GitHub] File tree fetched: ${fileTree.length} files found.`);
       qualitySignals = analyzeFileTree(fileTree);
+    } else {
+      console.warn(`[GitHub] Recursive tree fetch failed (${treeRes.status}). Falling back to root contents.`);
+      // Fallback: Fetch root contents if recursive tree fails (common for huge repos)
+      const rootRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents`, { headers });
+      if (rootRes.ok) {
+        const rootData = await rootRes.json();
+        fileTree = rootData.map(f => f.path);
+        qualitySignals = analyzeFileTree(fileTree);
+      }
     }
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.error('[GitHub] Error fetching file tree:', err.message);
+  }
 
   // --- 5. New: Fetch actual code snippets if authorized for deeper analysis ---
   let keyFilesContent = "";
   if (activeToken) {
     try {
-      // Look for main/index/app files in the root or common subdirs
-      const keyFiles = fileTree.filter(path =>
-        path === 'index.js' || path === 'app.js' || path === 'main.js' ||
-        path === 'server.js' || path === 'index.ts' || path === 'main.py' ||
-        path.startsWith('api/') || path.startsWith('src/main') || path.startsWith('src/index')
-      ).slice(0, 5); // Limit to 5 files to avoid huge payloads
+      // Broaden search: Focus on source files in common directories or with common extensions
+      const priorityExtensions = ['.js', '.ts', '.tsx', '.py', '.java', '.go', '.rs', '.php', '.cpp', '.c', '.cs', '.rb'];
+      const noiseFolders = ['node_modules', 'dist', 'build', 'out', 'vendor', '.next', '.git'];
+
+      const keyFiles = fileTree.filter(path => {
+        const lower = path.toLowerCase();
+        const hasPriorityExt = priorityExtensions.some(ext => lower.endsWith(ext));
+        const isInNoise = noiseFolders.some(folder => lower.includes(folder));
+        
+        // Priority 1: Main entry points
+        const isMain = ['index.js', 'app.js', 'main.js', 'server.js', 'index.ts', 'main.py', 'index.tsx', 'main.go', 'main.rs'].includes(lower);
+        
+        // Priority 2: Logic directories
+        const isLogicDir = path.startsWith('api/') || path.startsWith('src/') || path.startsWith('lib/') || path.startsWith('app/') || path.startsWith('backend/');
+        
+        return !isInNoise && (isMain || (isLogicDir && hasPriorityExt));
+      })
+      .sort((a, b) => {
+        // Sort to get entry points first, then others
+        const aLower = a.toLowerCase();
+        const bLower = b.toLowerCase();
+        const aIsEntry = ['index', 'app', 'main', 'server'].some(n => aLower.includes(n));
+        const bIsEntry = ['index', 'app', 'main', 'server'].some(n => bLower.includes(n));
+        if (aIsEntry && !bIsEntry) return -1;
+        if (!aIsEntry && bIsEntry) return 1;
+        return a.length - b.length; // prefer shorter paths (usually more central)
+      })
+      .slice(0, 10); // Increase limit to 10 files for better analysis
 
       for (const path of keyFiles) {
         const fileRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, { headers });
         if (fileRes.ok) {
           const fileData = await fileRes.json();
           const content = Buffer.from(fileData.content, 'base64').toString('utf-8');
-          keyFilesContent += `\n--- FILE: ${path} ---\n${content.substring(0, 2000)}\n`;
+          keyFilesContent += `\n--- FILE: ${path} ---\n${content.substring(0, 3000)}\n`; // Increase snippet size
         }
       }
       console.log(`[GitHub] Deep scan complete. Fetched ${keyFiles.length} files. Total code length: ${keyFilesContent.length} chars.`);
