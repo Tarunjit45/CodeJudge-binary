@@ -6,21 +6,21 @@
 
 ## 📌 Overview
 
-A high-performance JavaScript application engineered for scalability and quality.
+A high-performance application engineered by Tarunjit Biswas for quality and scalability.
 
 ## ✨ Key Features & Architecture
 
-- **High-Performance Architecture:** Engineered using modern `JavaScript` best practices.
-- **Modular & Scalable Design:** Structured code organization for easy maintenance and deployment.
-- **AI-Powered Capabilities:** Integrated advanced LLM intelligence for automated insights and processing.
+- **High-Performance Codebase:** Built using `JavaScript` and modern engineering principles.
+- **Modular & Scalable Design:** Structured directory tree for seamless development and deployment.
+- **Artificial Intelligence Integration:** Native support for LLM pipelines, prompt engineering, and intelligent processing.
 
-## 🛠️ Tech Stack & Technologies
+## 🛠️ Tech Stack & Dependencies
 
-- **Primary Language:** `JavaScript`
-- **Frameworks & Libraries:** OpenAI API, JavaScript, Vite
-- **Deployment Target:** Vercel Edge / Cloud Infrastructure
+- **Core Language:** `JavaScript`
+- **Libraries & Tools:** Vite, OpenAI API, JavaScript
+- **Deployment Infrastructure:** Vercel Edge / Cloud Services
 
-## 📁 Project Directory Structure
+## 📁 Architecture & File Layout
 
 ```text
 CodeJudge-binary/
@@ -39,16 +39,16 @@ CodeJudge-binary/
 ├── api/services/github.js
 ├── api/services/leaderboard.js
 ├── api/services/scoring.js
-└── ... [additional source files]
+└── ... [additional codebase files]
 ```
 
-## 🚀 Getting Started
+## 🚀 Quickstart & Installation
 
 ### Prerequisites
 - Node.js (v18.0.0 or higher)
-- npm or yarn
+- npm or yarn package manager
 
-### Installation & Local Setup
+### Setup Instructions
 
 1. **Clone the repository:**
    ```bash
@@ -61,12 +61,12 @@ CodeJudge-binary/
    npm install
    ```
 
-3. **Start development server:**
+3. **Launch development server:**
    ```bash
    npm run dev
    ```
 
-## 📜 License & Author
+## 📜 Author & License
 
-Engineered with ❤️ by **[Tarunjit Biswas](https://github.com/Tarunjit45)**.  
-Released under the **MIT License**.
+Architected & Developed by **[Tarunjit Biswas](https://github.com/Tarunjit45)**.  
+Distributed under the **MIT License**.
