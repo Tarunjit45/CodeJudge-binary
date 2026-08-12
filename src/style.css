@@ -311,12 +311,14 @@ body {
   align-items: flex-start;
   justify-content: center;
   padding: 40px 24px;
+  padding-bottom: 120px; /* room for fixed stage-nav */
   min-height: calc(100vh - 90px);
 }
 
 .screen {
   display: none;
   width: 100%;
+
   max-width: 680px;
   margin: 0 auto;
   animation: screenIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
@@ -337,12 +339,92 @@ body {
   }
 }
 
+/* ===== Stage Navigation (Back / Next) ===== */
+.stage-nav {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  width: min(840px, calc(100% - 32px));
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--bg-secondary) 75%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 1050;
+}
+
+.stage-nav-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  text-align: center;
+  padding: 0 6px;
+  user-select: none;
+}
+
+.stage-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.stage-nav-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  box-shadow: var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+.stage-nav-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.stage-nav-btn-primary {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  border-color: transparent;
+  color: white;
+}
+
+.stage-nav-arrow {
+  opacity: 0.9;
+}
+
+@media (max-width: 520px) {
+  .stage-nav {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "label label"
+      "back next";
+  }
+  #stage-nav-label { grid-area: label; }
+  #stage-back { grid-area: back; }
+  #stage-next { grid-area: next; }
+}
+
 /* ===== Landing Screen ===== */
 .landing-wrapper {
   text-align: center;
   position: relative;
-  padding-top: 40px;
-}
+  padding-top: 40px;}
 
 .landing-glow {
   position: absolute;

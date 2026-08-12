@@ -18,9 +18,9 @@
 <body>
   <div id="app">
     <!-- Navbar -->
-    <header class="main-navbar">
+     <header class="main-navbar">
       <div class="nav-left">
-        <div class="nav-logo" onclick="window.location.reload()">
+        <div class="nav-logo" id="nav-logo" title="Go to Home">
           <span class="logo-code">&lt;</span>CJ<span class="logo-accent"> AI</span><span class="logo-code">/&gt;</span>
         </div>
       </div>
@@ -458,7 +458,20 @@
         </div>
       </section>
 
-    </main>
+     </main>
+
+    <!-- Stage Navigation (Back / Next) -->
+    <div id="stage-nav" class="stage-nav" aria-label="Stage navigation">
+      <button id="stage-back" class="stage-nav-btn" type="button" aria-label="Go back">
+        <span class="stage-nav-arrow">←</span>
+        <span class="stage-nav-text">Back</span>
+      </button>
+      <div id="stage-nav-label" class="stage-nav-label" aria-live="polite"></div>
+      <button id="stage-next" class="stage-nav-btn stage-nav-btn-primary" type="button" aria-label="Go next">
+        <span class="stage-nav-text">Next</span>
+        <span class="stage-nav-arrow">→</span>
+      </button>
+    </div>
 
     <!-- Hidden share card for download -->
     <div id="share-card-hidden" style="position:absolute; left: -9999px; top: -9999px;">

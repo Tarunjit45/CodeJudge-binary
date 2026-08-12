@@ -67,9 +67,25 @@ const SCREEN_IDS = [
   'screen-score', 'screen-leaderboard',
 ];
 
+const STEP_LABELS = [
+  'Submit',
+  'Process',
+  'X-Ray',
+  'Attack',
+  'Breakpoint',
+  'Fix',
+  'Score',
+  'Rank',
+];
+
 // ===== DOM Refs =====
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
+
+let processingIntervalId = null;
+let processingAdvanceTimeoutId = null;
+let attackController = null;
+
 
 // ===== Theme Toggle =====
 function initTheme() {
@@ -172,8 +188,7 @@ function updatePipelineBar(step) {
   $$('.pipeline-step').forEach((el, i) => {
     el.classList.remove('active', 'completed');
     if (i < step) el.classList.add('completed');
-    if (i === step) el.classList.add('active');
-  });
+    if (i === step) el.classList.add('active');  });
 
   $$('.pipeline-connector').forEach((el, i) => {
     if (i < step) {
@@ -184,11 +199,81 @@ function updatePipelineBar(step) {
   });
 }
 
+function validateStep(targetStep) {
+  const maxStep = SCREEN_IDS.length - 1;
+  const step = Math.max(0, Math.min(maxStep, targetStep));
+
+  if (step === 0) return { ok: true, step };
+
+  if (!state.projectInfo) {
+    return { ok: false, step, reason: 'Submit a project URL first.', fallback: 0 };
+  }
+
+  if (step >= 4 && (!Array.isArray(state.attackResults) || state.attackResults.length === 0)) {
+    return { ok: false, step, reason: 'Run attacks first to see breakpoints.', fallback: 3 };
+  }
+
+  if (step >= 5 && !state.review) {
+    return { ok: false, step, reason: 'Waiting for the AI review. Stay on Breakpoint for a moment.', fallback: 4 };
+  }
+
+  if (step >= 6 && !state.score) {
+    return { ok: false, step, reason: 'Score is not ready yet.', fallback: 5 };
+  }
+
+  return { ok: true, step };
+}
+
+function tryGoToStep(targetStep) {
+  const v = validateStep(targetStep);
+  if (!v.ok) {
+    alert(v.reason || 'Cannot navigate to that step yet.');
+    if (typeof v.fallback === 'number') goToStep(v.fallback);
+    return;
+  }
+  goToStep(v.step);
+}
+
+function initLogoHome() {
+  const logo = $('#nav-logo');
+  if (!logo) return;
+  logo.addEventListener('click', () => {
+    tryGoToStep(0);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+}
+
+function initStageNav() {
+  const backBtn = $('#stage-back');
+  const nextBtn = $('#stage-next');
+  if (!backBtn || !nextBtn) return;
+
+  backBtn.addEventListener('click', () => tryGoToStep(state.currentStep - 1));
+  nextBtn.addEventListener('click', () => tryGoToStep(state.currentStep + 1));
+
+  updateStageNav(state.currentStep);
+}
+
+function updateStageNav(step) {
+  const label = $('#stage-nav-label');
+  const backBtn = $('#stage-back');
+  const nextBtn = $('#stage-next');
+  if (!label || !backBtn || !nextBtn) return;
+
+  label.textContent = STEP_LABELS[step] || '';
+
+  backBtn.disabled = step <= 0;
+
+  const maxStep = SCREEN_IDS.length - 1;
+  nextBtn.disabled = step >= maxStep ? true : !validateStep(step + 1).ok;
+}
+
 // ===== Screen Transitions =====
 function showScreen(index) {
   const screens = $$('.screen');
   screens.forEach((s, i) => {
     if (i === index) {
+      s.classList.add('active');
       s.classList.add('active');
       s.style.animation = 'none';
       s.offsetHeight;
@@ -199,15 +284,28 @@ function showScreen(index) {
   });
   state.currentStep = index;
   updatePipelineBar(index);
+  updateStageNav(index);
 
   // Hide mode toggle after landing
   const modeContainer = $('#mode-toggle-container');
   if (index > 0) {
     modeContainer.style.opacity = '0';
     modeContainer.style.pointerEvents = 'none';
-  } else {
+    } else {
     modeContainer.style.opacity = '1';
     modeContainer.style.pointerEvents = 'auto';
+  }
+
+  // Cancel timers/streams when leaving a step
+  if (index !== 1) {
+    if (processingIntervalId) clearInterval(processingIntervalId);
+    if (processingAdvanceTimeoutId) clearTimeout(processingAdvanceTimeoutId);
+    processingIntervalId = null;
+    processingAdvanceTimeoutId = null;
+  }
+  if (index !== 3) {
+    if (attackController) attackController.abort();
+    attackController = null;
   }
 }
 
@@ -420,7 +518,10 @@ function runProcessing() {
   ];
 
   let i = 0;
-  const interval = setInterval(() => {
+   if (processingIntervalId) clearInterval(processingIntervalId);
+  if (processingAdvanceTimeoutId) clearTimeout(processingAdvanceTimeoutId);
+
+  processingIntervalId = setInterval(() => {
     if (i < logs.length) {
       const line = document.createElement('div');
       line.className = 'log-line';
@@ -430,8 +531,9 @@ function runProcessing() {
       container.scrollTop = container.scrollHeight;
       i++;
     } else {
-      clearInterval(interval);
-      setTimeout(() => {
+      clearInterval(processingIntervalId);
+      processingIntervalId = null;
+         processingAdvanceTimeoutId = setTimeout(() => {
         goToStep(2); // → Now show X-Ray Screen
       }, 800);
     }
@@ -445,10 +547,14 @@ function runChaosSimulation() {
   grid.innerHTML = '';
   summary.style.display = 'none';
 
+  if (attackController) attackController.abort();
+  attackController = new AbortController();
+
   fetch('/api/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ projectInfo: state.projectInfo }),
+    signal: attackController.signal,
   }).then(async (response) => {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -476,7 +582,20 @@ function runChaosSimulation() {
         }
       }
     }
+  }).catch((err) => {
+    if (err?.name === 'AbortError') return;
+    console.error('Attack stream failed:', err);
   });
+}
+
+function renderAttackFromState() {
+  const grid = $('#attack-grid');
+  const summary = $('#attack-summary');
+  if (!grid || !summary) return;
+
+  grid.innerHTML = '';
+  (state.attackResults || []).forEach(r => renderAttackCard(r, grid));
+  showAttackSummary(summary);
 }
 
 function renderAttackCard(result, container) {
@@ -875,7 +994,7 @@ function renderScore() {
   // Continue button
   addNextButton($('.score-wrapper'), 'See Leaderboard →', () => {
     goToStep(7); // → Leaderboard
-    submitToLeaderboard();
+  
   });
 }
 
@@ -1007,13 +1126,41 @@ function goToStep(index) {
   showScreen(index);
 
   switch (index) {
-    case 1: runProcessing(); break;
-    case 2: renderXRay(); break;
-    case 3: runChaosSimulation(); break;
-    case 4: showFailures(); break;
-    case 5: renderFix(); break;
-    case 6: renderScore(); break;
-    case 7: renderLeaderboard(); break;
+    case 1:
+      if (!state.projectInfo) return showScreen(0);
+      runProcessing();
+      break;
+    case 2:
+      if (!state.projectInfo) return showScreen(0);
+      renderXRay();
+      break;
+    case 3:
+      if (!state.projectInfo) return showScreen(0);
+      if (Array.isArray(state.attackResults) && state.attackResults.length > 0) {
+        renderAttackFromState();
+      } else {
+        runChaosSimulation();
+      }
+      break;
+    case 4:
+      if (!Array.isArray(state.attackResults) || state.attackResults.length === 0) return showScreen(3);
+      showFailures();
+      break;
+    case 5:
+      if (!state.review) return showScreen(4);
+      renderFix();
+      break;
+    case 6:
+      if (!state.score) return showScreen(5);
+      renderScore();
+      break;
+    case 7:
+      if (state.leaderboardEntry && Array.isArray(state.leaderboard) && state.leaderboard.length > 0) {
+        renderLeaderboard();
+      } else if (state.score && state.review) {
+        submitToLeaderboard();
+      }
+      break;
   }
 }
 
@@ -1136,6 +1283,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   initLanding();
   initDashboardModal();
+  initLogoHome();
+  initStageNav();
 
   // Restore State
   if (state.currentStep > 0 && state.projectInfo) {
